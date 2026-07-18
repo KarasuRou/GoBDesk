@@ -1,0 +1,43 @@
+{
+  "command": "render",
+  "profile": "en16931",
+  "output_dir": "out",
+  "invoice": {
+    "number": "2026-0002",
+    "issue_date": "2026-07-08",
+    "service_date": "2026-06-30",
+    "currency": "EUR",
+    "is_kleinunternehmer": true,
+    "seller": {
+      "name": "Rouven Einzelunternehmen",
+      "street": "Beispielweg 1",
+      "zip": "50667",
+      "city": "Köln",
+      "country": "DE",
+      "vat_id": null,
+      "tax_number": "214/123/45678",
+      "email": "info@rouven-solo.de",
+      "iban": "DE02120300000000202051",
+      "bic": "BYLADEM1001"
+    },
+    "buyer": {
+      "name": "Beispielkunde GmbH",
+      "street": "Kundenstraße 5",
+      "zip": "10115",
+      "city": "Berlin",
+      "country": "DE",
+      "vat_id": "DE987654321",
+      "email": "buchhaltung@beispielkunde.de"
+    },
+    "lines": [
+      {
+        "description": "Webdesign-Paket",
+        "quantity_milli": 1000,
+        "unit": "C62",
+        "unit_price_net_cents": 120000,
+        "tax_rate_bp": 0
+      }
+    ],
+    "payment_terms": "Zahlbar innerhalb von 14 Tagen ohne Abzug."
+  }
+}

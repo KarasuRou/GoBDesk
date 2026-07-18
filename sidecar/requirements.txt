@@ -1,0 +1,8 @@
+# GoBDesk E-Invoice-Sidecar – Laufzeitabhängigkeiten
+# (Exakte Versionen werden nach der ersten Installation via `pip freeze` gepinnt.)
+
+# factur-x erzeugt das EN-16931-CII-XML, bettet es in PDF/A-3 ein UND validiert
+# (XSD + Schematron, ohne Java). Damit ist drafthorse nicht nötig.
+factur-x>=5.0         # XML erzeugen + einbetten + validieren
+reportlab>=4.0        # Basis-PDF (reines Python, PyInstaller-freundlich)
+lxml>=5.0             # XML-Verarbeitung

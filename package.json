@@ -1,0 +1,41 @@
+{
+  "name": "gobdesk",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Offline-First-Tool für Kundenverwaltung, E-Rechnung (ZUGFeRD) und EÜR",
+  "author": "Rouven Tjalf Rosploch",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KarasuRou/GoBDesk.git"
+  },
+  "homepage": "https://github.com/KarasuRou/GoBDesk",
+  "bugs": "https://github.com/KarasuRou/GoBDesk/issues",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "smoke": "tsx scripts/smoke.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.web.json",
+    "bundle:sidecar": "node scripts/build-sidecar.mjs",
+    "bundle:runtime": "node scripts/bundle-runtime.mjs",
+    "bundle:icon": "node scripts/make-icon.mjs",
+    "dist": "npm run bundle:icon && electron-vite build && npm run bundle:runtime && electron-builder --publish never"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.1.0",
+    "electron": "^42.6.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

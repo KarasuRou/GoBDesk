@@ -1,0 +1,50 @@
+{
+  "command": "render",
+  "profile": "en16931",
+  "output_dir": "out",
+  "invoice": {
+    "number": "2026-0001",
+    "issue_date": "2026-07-08",
+    "service_date": "2026-06-30",
+    "currency": "EUR",
+    "is_kleinunternehmer": false,
+    "seller": {
+      "name": "Musterberatung Rouven",
+      "street": "Beispielweg 1",
+      "zip": "50667",
+      "city": "Köln",
+      "country": "DE",
+      "vat_id": "DE123456789",
+      "tax_number": "214/123/45678",
+      "email": "info@musterberatung.de",
+      "iban": "DE02120300000000202051",
+      "bic": "BYLADEM1001"
+    },
+    "buyer": {
+      "name": "Beispielkunde GmbH",
+      "street": "Kundenstraße 5",
+      "zip": "10115",
+      "city": "Berlin",
+      "country": "DE",
+      "vat_id": "DE987654321",
+      "email": "buchhaltung@beispielkunde.de"
+    },
+    "lines": [
+      {
+        "description": "Beratungsleistung IT-Architektur",
+        "quantity_milli": 8000,
+        "unit": "HUR",
+        "unit_price_net_cents": 9000,
+        "tax_rate_bp": 1900
+      },
+      {
+        "description": "Fachbuch (7 % ermäßigt)",
+        "quantity_milli": 2000,
+        "unit": "C62",
+        "unit_price_net_cents": 2500,
+        "tax_rate_bp": 700
+      }
+    ],
+    "payment_terms": "Zahlbar innerhalb von 14 Tagen ohne Abzug."
+  }
+}

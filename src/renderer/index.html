@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoBDesk</title>
+  </head>
+  <body>
+    <header class="titlebar">
+      <span class="brand">GoBDesk</span>
+      <button id="titlebar-update" class="titlebar-update hidden" title="Neue Version verfügbar – zum Herunterladen klicken">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        Update verfügbar
+      </button>
+    </header>
+
+    <div class="shell">
+      <nav class="sidebar">
+        <button class="nav-item" data-view="dashboard">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-view="customers">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Kunden
+        </button>
+        <button class="nav-item" data-view="orders">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
+          Aufträge
+        </button>
+        <button class="nav-item" data-view="invoices">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M21 9H3"/><path d="M21 15H3"/><path d="M12 3v18"/></svg>
+          Rechnungen
+        </button>
+        <button class="nav-item" data-view="documents">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          Dokumente
+        </button>
+        <button class="nav-item" data-view="euer">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+          EÜR
+        </button>
+        <button class="nav-item" data-view="journal">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-4"/><circle cx="7" cy="14" r="0.5"/></svg>
+          Journal
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Einstellungen
+        </button>
+      </nav>
+
+      <main class="content">
+        <!-- Dashboard -->
+        <section class="view" data-view="dashboard">
+          <div class="view-head" style="margin-bottom: 20px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <h1 style="margin: 0;">Übersicht</h1>
+            <span id="dash-company-subtitle" class="muted font-semibold" style="font-size: 14px;"></span>
+          </div>
+
+          <div id="dash-warnings"></div>
+
+          <!-- KPI-Metriken -->
+          <div class="cards-grid">
+            <div class="card stat">
+              <div class="stat-label" id="dash-income-label">Umsatz</div>
+              <div id="dash-income" class="stat-value">—</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label" id="dash-profit-label">Gewinn</div>
+              <div id="dash-profit" class="stat-value">—</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label">Offene Posten</div>
+              <div id="dash-outstanding" class="stat-value">—</div>
+            </div>
+            <div class="card stat">
+              <div class="stat-label">Kunden</div>
+              <div id="dash-customers" class="stat-value">—</div>
+            </div>
+          </div>
+
+          <!-- Finanzübersicht & Letzte Rechnungen -->
+          <div class="dashboard-details-grid">
+            <div class="card">
+              <h3 id="dash-euer-title" style="margin: 0 0 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Finanz-Schnellübersicht</h3>
+              <div id="dash-euer-summary">
+                <!-- EÜR-Werte und Fortschrittsbalken -->
+              </div>
+            </div>
+            <div class="card">
+              <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Letzte Rechnungen</h3>
+              <div class="table-container compact" style="overflow-x: auto;">
+                <table class="invoices-list compact-table" style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th>Nr.</th>
+                      <th>Kunde</th>
+                      <th>Datum</th>
+                      <th>Brutto</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-recent-invoices">
+                    <tr><td colspan="5" class="muted" style="text-align: center; padding: 12px;">Keine Rechnungen vorhanden.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <section class="card">
+            <h2>Datenintegrität</h2>
+            <p class="hint hint-top">Prüft Journal-Hash-Kette, Beleg-Prüfsummen, Rechnungsdateien und Schreibschutz auf unbemerkte Änderungen.</p>
+            <div class="actions">
+              <button id="verify" class="secondary">GoBD-Prüfung starten</button>
+            </div>
+            <div id="results"></div>
+          </section>
+        </section>
+
+        <!-- Kunden -->
+        <section class="view hidden" data-view="customers">
+          <div class="view-head">
+            <h1>Kunden</h1>
+            <button id="new-customer" class="small">+ Neuer Kunde</button>
+          </div>
+
+          <section id="customer-list-card" class="card wide">
+            <div class="filter-bar">
+              <label class="grow">Suche
+                <input id="customer-search" type="search" placeholder="Name, Ort, E-Mail, USt-IdNr, Nr…" />
+              </label>
+            </div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Kunde</th>
+                  <th>Ort</th>
+                  <th>E-Mail</th>
+                  <th class="num">Rechn.</th>
+                  <th class="num">Offen</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="customers"></tbody>
+            </table>
+
+            <form id="customer-form" class="form hidden" autocomplete="off">
+              <h3 id="customer-form-title">Neuer Kunde</h3>
+              <div class="form-row">
+                <label
+                  >Typ
+                  <select name="kind">
+                    <option value="company">Firma</option>
+                    <option value="individual">Person</option>
+                  </select>
+                </label>
+                <label class="grow"
+                  >Firmenname / Nachname
+                  <input name="name" type="text" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Straße <input name="street" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label>PLZ <input name="zip" type="text" /></label>
+                <label class="grow">Ort <input name="city" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">E-Mail <input name="email" type="email" /></label>
+                <label class="grow">USt-IdNr <input name="vat_id" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="cancel-customer" class="secondary">Abbrechen</button>
+                <span id="form-error" class="error"></span>
+              </div>
+            </form>
+          </section>
+
+          <section id="customer-detail" class="card wide hidden">
+            <div class="card-head">
+              <h2 id="customer-detail-title">Kunde</h2>
+              <button id="back-customers" class="secondary small">← Zurück</button>
+            </div>
+            <div id="customer-detail-info" class="detail-meta"></div>
+            <h3>Rechnungen dieses Kunden</h3>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Datum</th>
+                  <th>Status</th>
+                  <th>Brutto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="customer-invoices"></tbody>
+            </table>
+
+            <h3>Dokumente</h3>
+            <div id="customer-documents" class="detail-meta"></div>
+          </section>
+        </section>
+
+        <!-- Rechnungen -->
+        <section class="view hidden" data-view="invoices">
+          <div class="view-head">
+            <h1>Rechnungen</h1>
+            <button id="new-invoice" class="small">+ Neue Rechnung</button>
+          </div>
+
+          <section id="invoice-editor" class="card wide hidden">
+            <div class="invoice-editor-container">
+              <div class="invoice-editor-form">
+                <h3 id="invoice-editor-title">Neue Rechnung</h3>
+                <div class="invoice-meta-grid">
+                  <label class="col-span-2">Kunde <select id="inv-customer"></select></label>
+                  <label class="col-span-2">Auftrag <select id="inv-order"></select></label>
+                  <label class="col-span-1">Rechnungsdatum <input id="inv-issue" type="date" /></label>
+                  <label class="col-span-1">Leistungsdatum <input id="inv-service" type="date" /></label>
+                  <label class="col-span-2">Zahlungsziel <input id="inv-terms" type="text" /></label>
+                </div>
+
+                <table class="items">
+                  <thead>
+                    <tr>
+                      <th>Beschreibung</th>
+                      <th>Menge</th>
+                      <th>Einheit</th>
+                      <th>Einzel (netto)</th>
+                      <th>USt</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="inv-items"></tbody>
+                </table>
+                <button type="button" id="add-item" class="secondary small">+ Position</button>
+
+                <div id="inv-totals" class="totals"></div>
+
+                <div class="form-actions">
+                  <button type="button" id="save-draft" class="secondary">Als Entwurf speichern</button>
+                  <button type="button" id="issue-invoice">Festschreiben &amp; PDF</button>
+                  <button type="button" id="preview-invoice" class="secondary">Vorschau</button>
+                  <button type="button" id="cancel-invoice" class="secondary">Abbrechen</button>
+                  <span id="invoice-error" class="error"></span>
+                </div>
+              </div>
+
+              <iframe id="invoice-preview" class="pdf-preview hidden" title="PDF-Vorschau"></iframe>
+            </div>
+          </section>
+
+          <section id="invoice-list-card" class="card wide">
+            <div class="filter-bar">
+              <label
+                >Kunde
+                <select id="inv-filter-customer"><option value="">Alle</option></select>
+              </label>
+              <label>Von <input id="inv-filter-from" type="date" /></label>
+              <label>Bis <input id="inv-filter-to" type="date" /></label>
+              <button id="inv-filter-reset" type="button" class="secondary small">Zurücksetzen</button>
+            </div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Datum</th>
+                  <th>Kunde</th>
+                  <th>Status</th>
+                  <th>Brutto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="invoices-list"></tbody>
+            </table>
+          </section>
+
+          <section id="invoice-detail" class="card wide hidden">
+            <div class="card-head">
+              <h2 id="invoice-detail-title">Rechnung</h2>
+              <button id="back-invoices" class="secondary small">← Zurück</button>
+            </div>
+            <div id="invoice-detail-meta" class="detail-meta"></div>
+
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Pos.</th>
+                  <th>Beschreibung</th>
+                  <th>Menge</th>
+                  <th>Einzel</th>
+                  <th>USt</th>
+                  <th>Netto</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-detail-items"></tbody>
+            </table>
+            <div id="invoice-detail-totals" class="totals"></div>
+            <div id="invoice-detail-pdf" class="detail-pdf"></div>
+            <div id="invoice-validation" class="detail-meta"></div>
+
+            <h3>Verknüpfte Dokumente</h3>
+            <div id="invoice-documents" class="detail-meta"></div>
+
+            <h3>Zahlungen</h3>
+            <div id="payment-status" class="euer-line total"></div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Betrag</th>
+                  <th>Notiz</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="payments-list"></tbody>
+            </table>
+
+            <form id="payment-form" class="form" autocomplete="off">
+              <div class="form-row">
+                <label>Datum <input name="paid_at" type="date" /></label>
+                <label>Betrag (€) <input name="amount" type="number" step="0.01" /></label>
+                <label class="grow">Notiz <input name="note" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Zahlung hinzufügen</button>
+                <button type="button" id="fill-remaining" class="secondary">Voller Restbetrag</button>
+                <span id="payment-error" class="error"></span>
+              </div>
+            </form>
+
+            <h3>Journal / Nachweis</h3>
+            <div id="invoice-journal" class="detail-meta"></div>
+          </section>
+        </section>
+
+        <!-- EÜR -->
+        <section class="view hidden" data-view="euer">
+          <div class="view-head">
+            <h1>Einnahmen-Überschuss-Rechnung</h1>
+            <div class="year-select">
+              <label>Jahr <select id="euer-year"></select></label>
+              <input id="euer-year-add" type="number" min="2000" max="2100" placeholder="Jahr…" />
+              <button id="euer-year-add-btn" type="button" class="secondary small">+ Jahr</button>
+            </div>
+          </div>
+
+          <section class="card wide" id="euer-summary"></section>
+
+          <section class="card wide">
+            <div class="card-head">
+              <h2>Ausgaben</h2>
+              <button id="new-expense" class="small">+ Neue Ausgabe</button>
+            </div>
+
+            <form id="expense-form" class="form hidden" autocomplete="off">
+              <h3 id="expense-form-title">Neue Ausgabe</h3>
+              <div class="form-row">
+                <label>Datum <input name="expense_date" type="date" /></label>
+                <label class="grow">Beschreibung <input name="description" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Lieferant / Empfänger <input name="vendor" type="text" /></label>
+                <label class="grow">Kategorie <select name="category_id"></select></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Auftrag <select name="order_id"></select></label>
+              </div>
+              <div class="form-row">
+                <label>Brutto (€) <input name="gross" type="number" step="0.01" value="0" /></label>
+                <label>USt <select name="tax"></select></label>
+                <label>Abziehbar % <input name="deductible" type="number" step="1" value="100" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="cancel-expense" class="secondary">Abbrechen</button>
+                <span id="expense-error" class="error"></span>
+              </div>
+
+              <div id="expense-documents-wrap" class="hidden">
+                <h3>Verknüpfte Dokumente</h3>
+                <div id="expense-documents" class="detail-meta"></div>
+              </div>
+            </form>
+
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Beschreibung</th>
+                  <th>Empfänger</th>
+                  <th>Kategorie</th>
+                  <th>Abziehbar</th>
+                  <th>Netto</th>
+                  <th>Brutto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expenses-list"></tbody>
+            </table>
+          </section>
+        </section>
+
+        <!-- Aufträge -->
+        <section class="view hidden" data-view="orders">
+          <div class="view-head">
+            <h1>Aufträge</h1>
+            <button id="new-order" class="small">+ Neuer Auftrag</button>
+          </div>
+
+          <section id="order-list-card" class="card wide">
+            <form id="order-form" class="form hidden" autocomplete="off">
+              <h3 id="order-form-title">Neuer Auftrag</h3>
+              <div class="form-row">
+                <label>Auftragsnummer <input name="order_number" type="text" /></label>
+                <label class="grow">Titel <input name="title" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Kunde <select name="customer_id"></select></label>
+                <label>Datum <input name="order_date" type="date" /></label>
+                <label>Status
+                  <select name="status">
+                    <option value="offen">Offen</option>
+                    <option value="in_arbeit">In Arbeit</option>
+                    <option value="abgeschlossen">Abgeschlossen</option>
+                    <option value="storniert">Storniert</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Notiz <input name="notes" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="cancel-order" class="secondary">Abbrechen</button>
+                <span id="order-error" class="error"></span>
+              </div>
+            </form>
+
+            <div class="filter-bar">
+              <label class="grow">Suche
+                <input id="order-search" type="search" placeholder="Nummer, Titel, Kunde…" />
+              </label>
+              <label>Status
+                <select id="order-status-filter">
+                  <option value="">Alle</option>
+                  <option value="offen">Offen</option>
+                  <option value="in_arbeit">In Arbeit</option>
+                  <option value="abgeschlossen">Abgeschlossen</option>
+                  <option value="storniert">Storniert</option>
+                </select>
+              </label>
+            </div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Titel</th>
+                  <th>Kunde</th>
+                  <th>Status</th>
+                  <th>Verknüpft</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="orders-list"></tbody>
+            </table>
+          </section>
+
+          <section id="order-detail" class="card wide hidden">
+            <div class="card-head">
+              <h2 id="order-detail-title">Auftrag</h2>
+              <button id="back-orders" class="secondary small">← Zurück</button>
+            </div>
+            <div id="order-detail-info" class="detail-meta"></div>
+            <div class="actions">
+              <button id="order-edit" class="secondary small">Bearbeiten</button>
+              <button id="order-add-invoice" class="secondary small">+ Rechnung anlegen</button>
+              <button id="order-import-doc" class="secondary small">Dokument importieren</button>
+              <button id="order-delete" class="secondary small">Löschen</button>
+            </div>
+
+            <h3>Rechnungen</h3>
+            <div id="order-invoices" class="detail-meta"></div>
+            <h3>Dokumente</h3>
+            <div id="order-documents" class="detail-meta"></div>
+            <h3>Ausgaben</h3>
+            <div id="order-expenses" class="detail-meta"></div>
+          </section>
+        </section>
+
+        <!-- Dokumente -->
+        <section class="view hidden" data-view="documents">
+          <div class="view-head">
+            <h1>Dokumente</h1>
+            <button id="import-doc" class="small">+ Dokument importieren</button>
+          </div>
+
+          <section id="documents-list-card" class="card wide">
+            <div class="filter-bar">
+              <label class="grow">Suche
+                <input id="doc-search" type="search" placeholder="Titel oder Volltext…" />
+              </label>
+              <label>Typ <select id="doc-filter-type"><option value="">Alle</option></select></label>
+              <label>Kunde <select id="doc-filter-customer"><option value="">Alle</option></select></label>
+              <label>Auftrag <select id="doc-filter-order"><option value="">Alle</option></select></label>
+              <label class="checkbox-label"><input id="doc-filter-archived" type="checkbox" /> Archiv anzeigen</label>
+              <button id="doc-filter-reset" type="button" class="secondary small">Zurücksetzen</button>
+            </div>
+            <p id="doc-import-msg" class="hint hint-top"></p>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Titel</th>
+                  <th>Typ</th>
+                  <th>Kunde</th>
+                  <th>Datum</th>
+                  <th>Tags</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="documents-list"></tbody>
+            </table>
+          </section>
+
+          <section id="document-detail" class="card wide hidden">
+            <div class="card-head">
+              <h2 id="document-detail-title">Dokument</h2>
+              <button id="back-documents" class="secondary small">← Zurück</button>
+            </div>
+            <div id="document-detail-meta" class="detail-meta"></div>
+            <div id="document-einvoice"></div>
+
+            <form id="document-form" class="form" autocomplete="off">
+              <div class="form-row">
+                <label class="grow">Titel <input name="title" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Typ <select name="document_type_id"></select></label>
+                <label class="grow">Kunde <select name="customer_id"></select></label>
+                <label>Datum <input name="doc_date" type="date" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Auftrag <select name="order_id"></select></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Tags (mit Komma trennen) <input name="tags" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="open-doc" class="secondary">Datei öffnen</button>
+                <button type="button" id="archive-doc" class="secondary">Archivieren</button>
+                <button type="button" id="delete-doc" class="secondary">Löschen</button>
+                <span id="document-error" class="error"></span>
+              </div>
+            </form>
+
+            <h3>Verknüpfungen</h3>
+            <div id="document-links" class="detail-meta"></div>
+            <div class="form-row link-add">
+              <label>Typ
+                <select id="doc-link-type">
+                  <option value="invoice">Rechnung</option>
+                  <option value="expense">Ausgabe</option>
+                </select>
+              </label>
+              <label class="grow">Ziel <select id="doc-link-target"></select></label>
+              <button type="button" id="doc-link-add" class="secondary small">Verknüpfen</button>
+            </div>
+
+            <h3>Volltext (OCR)</h3>
+            <p class="hint hint-top">Erkannter Text für die Volltextsuche – hier prüf- und korrigierbar
+              (GoBD: korrigierter Volltext wird aufbewahrt, die Korrektur journalisiert).</p>
+            <textarea id="doc-ocr-text" rows="8" spellcheck="false"></textarea>
+            <div class="form-actions">
+              <button type="button" id="save-ocr" class="secondary small">OCR-Text speichern</button>
+              <span id="doc-ocr-msg" class="hint"></span>
+            </div>
+          </section>
+        </section>
+
+        <!-- Einstellungen -->
+        <section class="view hidden" data-view="settings">
+          <h1>Einstellungen</h1>
+          <section class="card">
+            <div class="card-head">
+              <h2>Firma</h2>
+              <button id="edit-company" class="secondary small">Bearbeiten</button>
+            </div>
+            <div id="settings-detail">…</div>
+
+            <form id="company-form" class="form hidden" autocomplete="off">
+              <div class="form-row">
+                <label class="grow">Firmenname / Name
+                  <input name="legal_name" type="text" />
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Straße <input name="address_line1" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label>PLZ <input name="zip" type="text" /></label>
+                <label class="grow">Ort <input name="city" type="text" /></label>
+                <label>Land <input name="country_iso" type="text" value="DE" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Steuernummer <input name="tax_number" type="text" /></label>
+                <label class="grow">USt-IdNr <input name="vat_id" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Besteuerung
+                  <select name="is_kleinunternehmer">
+                    <option value="1">Kleinunternehmen (§19 UStG)</option>
+                    <option value="0">Regelbesteuerung</option>
+                  </select>
+                </label>
+                <label class="grow">E-Mail <input name="email" type="email" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">IBAN <input name="iban" type="text" /></label>
+                <label class="grow">BIC <input name="bic" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="cancel-company" class="secondary">Abbrechen</button>
+                <span id="company-error" class="error"></span>
+              </div>
+            </form>
+          </section>
+
+          <section class="card">
+            <h2>Daten &amp; Sicherung</h2>
+            <div id="storage-info" class="detail-meta">…</div>
+            <div class="actions">
+              <button id="open-datadir" class="secondary small">Ordner öffnen</button>
+              <button id="change-datadir" class="secondary small">Speicherort ändern…</button>
+              <button id="create-backup" class="small">Sicherung erstellen…</button>
+            </div>
+            <p id="storage-msg" class="hint"></p>
+          </section>
+
+          <section class="card">
+            <h2>Verfahrensdokumentation</h2>
+            <p class="hint hint-top">Erzeugt eine aus den Systemdaten vorausgefüllte
+              Verfahrensdokumentation (GoBD Rz. 151 ff.) als PDF oder Markdown. Die
+              organisatorischen Angaben trägst du einmalig im Formular ein – sie werden
+              gespeichert und direkt in das Dokument übernommen; danach nur noch
+              ausdrucken und unterschreiben.</p>
+            <div class="actions">
+              <button id="export-verfdok" class="secondary small">Erstellen &amp; exportieren…</button>
+            </div>
+            <p id="verfdok-msg" class="hint"></p>
+          </section>
+
+          <section class="card">
+            <h2>Betriebsprüfung – Datenzugriff (Z3)</h2>
+            <p class="hint hint-top">Exportiert alle steuerrelevanten Daten als CSV-Paket inkl.
+              Datensatzbeschreibung (Strukturinformationen) für die Datenüberlassung an
+              die Finanzverwaltung (GoBD Rz. 158 ff.).</p>
+            <div class="actions">
+              <button id="export-z3" class="secondary small">Datenexport erstellen…</button>
+            </div>
+            <p id="z3-msg" class="hint"></p>
+          </section>
+
+          <section class="card" id="about-card">
+            <div class="card-head">
+              <h2>Über GoBDesk</h2>
+              <button id="update-available" class="small hidden">Update verfügbar</button>
+            </div>
+            <div id="about-info" class="detail-meta">…</div>
+            <p class="hint hint-top">Die Anwendung ist nach bestem Wissen an GoBD, EN 16931 und den
+              einschlägigen Vorschriften ausgerichtet – ohne Gewähr und ohne Steuer- oder
+              Rechtsberatung. Die Verantwortung für eine korrekte Buchführung verbleibt beim
+              Anwender.</p>
+            <div class="actions">
+              <button id="about-repo" class="secondary small">Quellcode auf GitHub</button>
+              <button id="about-licenses" class="secondary small">Open-Source-Lizenzen</button>
+              <button id="check-update" class="secondary small">Nach Updates suchen</button>
+            </div>
+            <p id="update-msg" class="hint"></p>
+          </section>
+        </section>
+
+        <!-- Journal / Nachweis -->
+        <section class="view hidden" data-view="journal">
+          <div class="view-head">
+            <h1>Journal</h1>
+            <button id="journal-export" class="secondary small">Exportieren…</button>
+          </div>
+          <section class="card wide">
+            <p class="hint hint-top">Revisionssicherer, chronologischer Nachweis aller
+              festgeschriebenen Geschäftsvorfälle (GoBD). Jeder Eintrag ist über eine
+              SHA-256-Hash-Kette mit dem vorherigen verknüpft – so ist die lückenlose
+              Nachverfolgung für einen sachverständigen Dritten direkt einsehbar.</p>
+            <div class="filter-bar">
+              <label>Vorgang
+                <select id="journal-filter-type">
+                  <option value="">Alle</option>
+                  <option value="invoice">Rechnungen</option>
+                  <option value="payment">Zahlungen</option>
+                  <option value="expense">Ausgaben</option>
+                  <option value="document">Dokumente</option>
+                  <option value="system">System (Sicherung/VerfDok)</option>
+                </select>
+              </label>
+              <span id="journal-status" class="muted"></span>
+            </div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Zeitpunkt</th>
+                  <th>Vorgang</th>
+                  <th>Beleg</th>
+                  <th>Verkettung</th>
+                </tr>
+              </thead>
+              <tbody id="journal-list"></tbody>
+            </table>
+            <p id="journal-msg" class="hint"></p>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 id="modal-title"></h3>
+        <p id="modal-message"></p>
+        <label id="modal-input-label" class="hidden">
+          <span id="modal-input-caption"></span>
+          <input id="modal-input" type="text" />
+        </label>
+        <div class="modal-actions">
+          <button id="modal-cancel" class="secondary">Abbrechen</button>
+          <button id="modal-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="verfdok-overlay" class="modal-overlay hidden">
+      <div class="modal modal-wide" role="dialog" aria-modal="true">
+        <h3>Verfahrensdokumentation erstellen</h3>
+        <p>Die organisatorischen Angaben werden gespeichert und direkt in das
+          Dokument eingesetzt – leere Felder erscheinen dort als gekennzeichneter
+          Platzhalter. Systemdaten (Firma, Kennzahlen, Prüfergebnis, Sicherungen)
+          werden automatisch ergänzt.</p>
+        <div id="verfdok-fields"></div>
+        <div class="modal-actions">
+          <button id="verfdok-cancel" class="secondary">Abbrechen</button>
+          <button id="verfdok-export-md" class="secondary">Als Markdown…</button>
+          <button id="verfdok-export-pdf">Als PDF exportieren…</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+# Node
+node_modules/
+dist/
+
+# Python-Sidecar
+__pycache__/
+*.pyc
+sidecar/out/
+sidecar/build/
+
+# Packaging (PyInstaller-/Ghostscript-Bündel, electron-builder-Ausgabe)
+build/bundle/
+build/*.log
+release/
+build
+
+# Datenbanken & generierte Ausgaben
+out
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# IDE / OS
+.claude
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets – niemals committen
+.env
+*.local
+
+# other stuff
+package-lock.json
+yarn.lock

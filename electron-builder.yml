@@ -1,0 +1,56 @@
+# electron-builder-Konfiguration – Auslieferung als eine Windows-Exe (Phase 8).
+#
+# Bündelt den PyInstaller-Sidecar und eine schlanke Ghostscript-Laufzeit als
+# extraResources (nach resources/sidecar bzw. resources/ghostscript). Damit
+# braucht der Endanwender weder Python noch Ghostscript separat zu installieren.
+# Vorher `npm run bundle:sidecar` und `npm run bundle:runtime` ausführen (macht
+# `npm run dist` automatisch).
+
+appId: de.gobdesk.app
+productName: GoBDesk
+copyright: © 2026 GoBDesk
+
+directories:
+  output: release
+
+# node_modules mit (better-sqlite3 als natives Prebuilt); devDependencies
+# schließt electron-builder automatisch aus. Migrationen wandern in die asar,
+# da sie über app.getAppPath() gelesen werden.
+files:
+  - out/**
+  - db/migrations/**
+  - node_modules/**
+  - package.json
+
+# Native Module (better-sqlite3 *.node) müssen außerhalb der asar liegen.
+asarUnpack:
+  - "**/*.node"
+
+extraResources:
+  - from: build/bundle/sidecar
+    to: sidecar
+  - from: build/bundle/ghostscript
+    to: ghostscript
+  - from: build/bundle/tesseract
+    to: tesseract
+  # Lizenzhinweise mit ausliefern (aus der „Über"-Karte offline erreichbar).
+  - THIRD-PARTY-LICENSES.md
+  - LICENSE
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: x64
+    - target: portable
+      arch: x64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: GoBDesk
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

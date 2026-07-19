@@ -1,6 +1,6 @@
 {
   "name": "gobdesk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Offline-First-Tool für Kundenverwaltung, E-Rechnung (ZUGFeRD) und EÜR",

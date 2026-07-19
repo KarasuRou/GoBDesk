@@ -23,7 +23,7 @@ import {
 } from "./invoices.js";
 import { exportZ3 } from "./export.js";
 import { generateVerfahrensdok, renderVerfdokHtml, saveVerfdokTexts } from "./verfdok.js";
-import { validateInvoice } from "./sidecar.js";
+import { validateInvoice, terminateSidecars } from "./sidecar.js";
 import { fileSha256 } from "./hash.js";
 import { getDataDir } from "./config.js";
 import {
@@ -661,6 +661,11 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+// Vor dem Beenden alle noch laufenden Sidecar-Prozesse (inkl. Ghostscript/
+// Tesseract) mitbeenden – sonst blieben sie als Waisen im Installationsordner
+// und blockierten die nächste (Update-)Installation.
+app.on("will-quit", () => terminateSidecars());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

@@ -1,6 +1,6 @@
 /** Aufruf des Python-Sidecars: Request-JSON über stdin, Ergebnis-JSON über stdout. */
 
-import { spawn } from "node:child_process";
+import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 
 import type { ValidationResult } from "../shared/api.js";
 
@@ -14,6 +14,35 @@ export interface SidecarResult {
 
 /** Standard-Timeout je Sidecar-Aufruf (OCR großer Scans kann etwas dauern). */
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+/** Laufende Sidecar-Kindprozesse, damit sie beim App-Beenden sicher enden. */
+const activeChildren = new Set<ChildProcess>();
+
+/**
+ * Beendet einen Kindprozess samt Enkeln. `child.kill()` beendet unter Windows
+ * nur den Sidecar selbst – das von Python gestartete Ghostscript/Tesseract
+ * bliebe als Waise im Installationsordner zurück und würde bei der nächsten
+ * (Update-)Installation fälschlich „Anwendung läuft noch" auslösen, weil
+ * electron-builder jeden Prozess unter $INSTDIR als laufende App wertet.
+ */
+function killChildTree(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+  if (process.platform === "win32") {
+    try {
+      execFileSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+      return;
+    } catch {
+      /* Prozessbaum bereits beendet – der Fallback unten genügt. */
+    }
+  }
+  child.kill();
+}
+
+/** Beendet alle noch laufenden Sidecar-Prozesse (Aufruf beim App-Beenden). */
+export function terminateSidecars(): void {
+  for (const child of activeChildren) killChildTree(child);
+  activeChildren.clear();
+}
 
 /**
  * Startbefehl des Sidecars: im Paket-Modus das gebündelte PyInstaller-Binary
@@ -43,6 +72,8 @@ function callSidecar<T>(
   return new Promise((resolve, reject) => {
     const { cmd, args, env } = resolveSidecar(sidecarDir);
     const child = spawn(cmd, args, { cwd: sidecarDir, env });
+    activeChildren.add(child);
+    child.on("exit", () => activeChildren.delete(child));
 
     let out = "";
     let err = "";
@@ -55,7 +86,7 @@ function callSidecar<T>(
     };
     const timer = setTimeout(() => {
       finish(() => {
-        child.kill();
+        killChildTree(child);
         reject(new Error(`Sidecar-Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)}s.`));
       });
     }, timeoutMs);

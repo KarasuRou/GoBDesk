@@ -25,6 +25,59 @@ nachvollziehbar gehalten.
 Eine ehrliche Einordnung der GoBD-Grenzen (manipulations-*erkennbar*, nicht
 *unmöglich*) steht in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#gobd--ehrliche-grenzen).
 
+## Was GoBDesk besonders macht
+
+Es gibt bereits viele Rechnungs- und Buchhaltungsprogramme. GoBDesk setzt den Schwerpunkt
+bewusst **nicht** auf maximalen Funktionsumfang, sondern auf **nachweisbare Integrität,
+Datensparsamkeit und ein schlankes, nachvollziehbares Fundament**.
+
+### 1. Ernst gemeinte GoBD-Unveränderbarkeit (verkettete Hash-Kette)
+
+Jeder buchungsrelevante Vorgang (Festschreiben, Storno, Zahlung, Ausgabe, Dokument-Import,
+Backup) wird als Glied einer **kryptografisch verketteten Hash-Kette** ins Journal
+(`audit_log`) geschrieben: `record_hash = SHA-256(vorheriger_hash | payload)`. Dadurch fällt
+**jedes** nachträgliche Einfügen, Löschen oder Umsortieren auf – nicht nur die Änderung eines
+einzelnen Datensatzes. Abgesichert durch mehrere, sich ergänzende Mechanismen:
+
+- **Append-Only auf DB-Ebene** – SQLite-Trigger verbieten `UPDATE`/`DELETE` auf `audit_log`,
+  festgeschriebene Rechnungen und deren Positionen.
+- **Neuberechnung beim Prüfen** – der `content_hash` jeder festgeschriebenen Rechnung wird aus
+  den aktuellen Daten neu berechnet und verglichen; erkennt Manipulation **am Trigger vorbei**
+  (z. B. direkt in der DB-Datei).
+- **Byte-genaue Datei-Integrität** – SHA-256 von PDF, eingebettetem XML und jedem DMS-Dokument
+  ist im Journal verankert; eine geänderte Datei bricht den Abgleich.
+- **Uhr-Manipulationsschutz** – eine zurückgestellte Systemuhr wird erkannt und blockiert das
+  Festschreiben (`assertClockMonotonic`).
+- **Nebenaufzeichnungen rekonstruierbar** – Zahlungen und Ausgaben werden aus den
+  Journal-Snapshots rekonstruiert und gegen die Tabellen abgeglichen.
+- **Korrektur nur per Storno** – festgeschriebene Belege werden nie editiert, sondern durch
+  einen referenzierten Storno-/Korrekturbeleg ausgeglichen.
+
+Die mehrstufige **Selbstprüfung** (`verifyGobd`, im Dashboard) fasst all das zu einem Bericht
+zusammen. Ehrlich bleibt: GoBD verlangt Manipulations-*Erkennbarkeit*, keine kryptografische
+*Unmöglichkeit* – genau das leistet diese Kette (Details und Grenzen in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#gobd--ehrliche-grenzen)).
+
+### 2. Datensparsam by design – kein lauschender Server
+
+Die App ist **Offline-First** und überträgt nichts an Dritte. Der Python-Teil läuft als
+**Sidecar über stdin/stdout** – **kein** lokaler HTTP-Server, **kein** offener Netzwerk-Port,
+keine Telemetrie. Die Angriffsfläche ist damit kleiner als bei Architekturen mit lokalem
+Web-Backend, und die Buchhaltungsdaten verlassen den Rechner nicht.
+
+### 3. Echte E-Rechnung ohne Java
+
+GoBDesk erzeugt **hybride PDF/A-3-Dateien mit eingebettetem EN-16931-XML** (ZUGFeRD/Factur-X),
+**veraPDF-validiert als PDF/A-3b** und per XSD + Schematron gegen EN 16931 geprüft – über
+`factur-x` / `reportlab` / Ghostscript, **ohne** eine Java-Laufzeit ausliefern zu müssen.
+Empfangene ZUGFeRD-/XRechnungs-Belege (CII **und** UBL) werden beim Import ebenfalls erkannt.
+
+### 4. Schlank & selbstbestimmt
+
+Eine **einzige Exe** (Sidecar, Ghostscript und Tesseract gebündelt), **MIT-lizenziert**, ohne
+Framework-Ballast im Renderer. Fokus auf Rechnung, EÜR und Dokumentenmanagement – bewusst
+keine überladene Komplett-Buchhaltung.
+
 ## Tech-Stack
 
 | Schicht | Technologie |

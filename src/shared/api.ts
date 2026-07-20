@@ -179,6 +179,17 @@ export interface InvoiceFilter {
   orderId?: number | null;
 }
 
+/** Erfassungsart eines Zu-/Abschlags: prozentual (Wert in bp) oder absolut (Cent). */
+export type AdjustmentType = "percent" | "amount";
+
+/** Ein Zu- oder Abschlag (Rabatt/Aufpreis) auf Positions- oder Rechnungsebene. */
+export interface LineAdjustment {
+  type: AdjustmentType;
+  /** percent → Basispunkte (3000 = 30 %); amount → Cent. */
+  value: number;
+  reason?: string | null;
+}
+
 export interface InvoiceItemDetail {
   position: number;
   description: string;
@@ -186,6 +197,10 @@ export interface InvoiceItemDetail {
   unit: string;
   unit_price_net_cents: number;
   tax_rate_bp: number;
+  /** Positions-Rabatt (EN 16931 BG-27). */
+  discount: LineAdjustment | null;
+  /** Positions-Aufpreis (EN 16931 BG-28). */
+  surcharge: LineAdjustment | null;
   line_net_cents: number | null;
   line_gross_cents: number | null;
 }
@@ -215,6 +230,8 @@ export interface InvoiceDetail {
   cancels_invoice_id: number | null;
   cancels_number: string | null;
   notes: string | null;
+  /** Rechnungsweiter Rabatt (EN 16931 BG-20). */
+  discount: LineAdjustment | null;
   net_total_cents: number | null;
   tax_total_cents: number | null;
   gross_total_cents: number | null;
@@ -232,6 +249,10 @@ export interface InvoiceLineInput {
   unit: string;
   unit_price_net_cents: number;
   tax_rate_bp: number;
+  /** Positions-Rabatt (EN 16931 BG-27). */
+  discount?: LineAdjustment | null;
+  /** Positions-Aufpreis (EN 16931 BG-28). */
+  surcharge?: LineAdjustment | null;
 }
 
 export interface DraftInvoiceInput {
@@ -240,6 +261,8 @@ export interface DraftInvoiceInput {
   service_date: string;
   payment_terms: string | null;
   order_id?: number | null;
+  /** Rechnungsweiter Rabatt (EN 16931 BG-20). */
+  discount?: LineAdjustment | null;
   lines: InvoiceLineInput[];
 }
 

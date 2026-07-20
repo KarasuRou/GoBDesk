@@ -14,6 +14,7 @@ import type {
   InvoiceItemDetail,
   InvoiceListItem,
   IssueInvoiceResult,
+  LineAdjustment,
   PaymentItem,
   TaxRate,
 } from "../shared/api.js";
@@ -22,6 +23,21 @@ import { previewInvoicePdf, renderInvoicePdf } from "./sidecar.js";
 export interface SidecarPaths {
   invoicesDir: string;
   sidecarDir: string;
+}
+
+/** Baut aus DB-Rohwerten (Typ/Wert/Grund) einen Zu-/Abschlag oder null. */
+function rowAdjustment(type: unknown, value: unknown, reason: unknown): LineAdjustment | null {
+  if ((type === "percent" || type === "amount") && typeof value === "number") {
+    return { type, value, reason: (reason as string | null) ?? null };
+  }
+  return null;
+}
+
+/** Zerlegt einen Zu-/Abschlag in die drei DB-Spalten (Typ, Wert, Grund). */
+function adjCols(
+  a: LineAdjustment | null | undefined,
+): [string | null, number | null, string | null] {
+  return a ? [a.type, a.value, a.reason ?? null] : [null, null, null];
 }
 
 export function listTaxRates(db: Database.Database): TaxRate[] {
@@ -98,6 +114,7 @@ export function getInvoice(db: Database.Database, id: number): InvoiceDetail | n
               i.order_id, o.order_number,
               i.cancelled_by_invoice_id, cb.invoice_number AS cancelled_by_number,
               i.cancels_invoice_id, cv.invoice_number AS cancels_number,
+              i.discount_type, i.discount_value, i.discount_reason,
               i.net_total_cents, i.tax_total_cents, i.gross_total_cents,
               COALESCE(c.company_name, c.contact_last_name) AS customer_name,
               EXISTS (SELECT 1 FROM invoice_artifacts a WHERE a.invoice_id = i.id AND a.kind = 'pdf') AS has_pdf
@@ -108,16 +125,52 @@ export function getInvoice(db: Database.Database, id: number): InvoiceDetail | n
          LEFT JOIN invoices cv ON cv.id = i.cancels_invoice_id
         WHERE i.id = ?`,
     )
-    .get(id) as Omit<InvoiceDetail, "items" | "payments" | "paid_cents" | "remaining_cents" | "payment_status"> | undefined;
+    .get(id) as
+    | (Omit<
+        InvoiceDetail,
+        "items" | "payments" | "paid_cents" | "remaining_cents" | "payment_status" | "discount"
+      > & {
+        discount_type: string | null;
+        discount_value: number | null;
+        discount_reason: string | null;
+      })
+    | undefined;
   if (!head) return null;
 
-  const items = db
+  const rawItems = db
     .prepare(
       `SELECT position, description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp,
+              discount_type, discount_value, discount_reason,
+              surcharge_type, surcharge_value, surcharge_reason,
               line_net_cents, line_gross_cents
          FROM invoice_items WHERE invoice_id = ? ORDER BY position`,
     )
-    .all(id) as InvoiceItemDetail[];
+    .all(id) as Array<
+    Omit<InvoiceItemDetail, "discount" | "surcharge"> & {
+      discount_type: string | null;
+      discount_value: number | null;
+      discount_reason: string | null;
+      surcharge_type: string | null;
+      surcharge_value: number | null;
+      surcharge_reason: string | null;
+    }
+  >;
+  const items: InvoiceItemDetail[] = rawItems.map((r) => {
+    const {
+      discount_type,
+      discount_value,
+      discount_reason,
+      surcharge_type,
+      surcharge_value,
+      surcharge_reason,
+      ...rest
+    } = r;
+    return {
+      ...rest,
+      discount: rowAdjustment(discount_type, discount_value, discount_reason),
+      surcharge: rowAdjustment(surcharge_type, surcharge_value, surcharge_reason),
+    };
+  });
   const payments = db
     .prepare(
       "SELECT id, paid_at, amount_cents, method, note FROM payments WHERE invoice_id = ? ORDER BY paid_at, id",
@@ -129,8 +182,10 @@ export function getInvoice(db: Database.Database, id: number): InvoiceDetail | n
   const remaining = Math.max(0, gross - paid);
   const paymentStatus = gross > 0 && paid >= gross ? "bezahlt" : paid > 0 ? "teilweise" : "offen";
 
+  const { discount_type, discount_value, discount_reason, ...headRest } = head;
   return {
-    ...head,
+    ...headRest,
+    discount: rowAdjustment(discount_type, discount_value, discount_reason),
     items,
     payments,
     paid_cents: paid,
@@ -192,21 +247,39 @@ export function createDraftInvoice(db: Database.Database, input: DraftInvoiceInp
   if (input.lines.length === 0) throw new Error("Mindestens eine Position erforderlich.");
 
   const run = db.transaction((data: DraftInvoiceInput): number => {
+    const [dt, dv, dr] = adjCols(data.discount);
     const invId = Number(
       db
         .prepare(
-          "INSERT INTO invoices (customer_id, status, issue_date, service_date, notes, order_id) VALUES (?, 'draft', ?, ?, ?, ?)",
+          `INSERT INTO invoices (customer_id, status, issue_date, service_date, notes, order_id,
+                                 discount_type, discount_value, discount_reason)
+           VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(data.customer_id, data.issue_date, data.service_date, data.payment_terms, data.order_id ?? null)
+        .run(
+          data.customer_id,
+          data.issue_date,
+          data.service_date,
+          data.payment_terms,
+          data.order_id ?? null,
+          dt,
+          dv,
+          dr,
+        )
         .lastInsertRowid,
     );
     const item = db.prepare(
-      `INSERT INTO invoice_items (invoice_id, position, description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO invoice_items (invoice_id, position, description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp,
+                                  discount_type, discount_value, discount_reason, surcharge_type, surcharge_value, surcharge_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    data.lines.forEach((l, i) =>
-      item.run(invId, i + 1, l.description, l.quantity_milli, l.unit, l.unit_price_net_cents, l.tax_rate_bp),
-    );
+    data.lines.forEach((l, i) => {
+      const d = adjCols(l.discount);
+      const s = adjCols(l.surcharge);
+      item.run(
+        invId, i + 1, l.description, l.quantity_milli, l.unit, l.unit_price_net_cents, l.tax_rate_bp,
+        d[0], d[1], d[2], s[0], s[1], s[2],
+      );
+    });
     return invId;
   });
 
@@ -227,17 +300,37 @@ export function updateDraftInvoice(
   if (inv.status !== "draft") throw new Error("Nur Entwürfe können bearbeitet werden.");
 
   const run = db.transaction(() => {
+    const [dt, dv, dr] = adjCols(input.discount);
     db.prepare(
-      "UPDATE invoices SET customer_id = ?, issue_date = ?, service_date = ?, notes = ?, order_id = ?, updated_at = ? WHERE id = ?",
-    ).run(input.customer_id, input.issue_date, input.service_date, input.payment_terms, input.order_id ?? null, new Date().toISOString(), id);
+      `UPDATE invoices SET customer_id = ?, issue_date = ?, service_date = ?, notes = ?, order_id = ?,
+                           discount_type = ?, discount_value = ?, discount_reason = ?, updated_at = ?
+         WHERE id = ?`,
+    ).run(
+      input.customer_id,
+      input.issue_date,
+      input.service_date,
+      input.payment_terms,
+      input.order_id ?? null,
+      dt,
+      dv,
+      dr,
+      new Date().toISOString(),
+      id,
+    );
     db.prepare("DELETE FROM invoice_items WHERE invoice_id = ?").run(id);
     const item = db.prepare(
-      `INSERT INTO invoice_items (invoice_id, position, description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO invoice_items (invoice_id, position, description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp,
+                                  discount_type, discount_value, discount_reason, surcharge_type, surcharge_value, surcharge_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    input.lines.forEach((l, i) =>
-      item.run(id, i + 1, l.description, l.quantity_milli, l.unit, l.unit_price_net_cents, l.tax_rate_bp),
-    );
+    input.lines.forEach((l, i) => {
+      const d = adjCols(l.discount);
+      const s = adjCols(l.surcharge);
+      item.run(
+        id, i + 1, l.description, l.quantity_milli, l.unit, l.unit_price_net_cents, l.tax_rate_bp,
+        d[0], d[1], d[2], s[0], s[1], s[2],
+      );
+    });
   });
   run();
 }
@@ -251,6 +344,7 @@ function buildSidecarRequest(db: Database.Database, invoiceId: number, outputDir
     .prepare(
       `SELECT i.invoice_number, i.issue_date, i.service_date, i.due_date, i.currency,
               i.is_kleinunternehmer_snapshot AS ku, i.notes, i.customer_id, i.order_number_snapshot,
+              i.discount_type, i.discount_value, i.discount_reason,
               cv.invoice_number AS cancels_number
          FROM invoices i LEFT JOIN invoices cv ON cv.id = i.cancels_invoice_id
         WHERE i.id = ?`,
@@ -260,7 +354,10 @@ function buildSidecarRequest(db: Database.Database, invoiceId: number, outputDir
   const c = db.prepare("SELECT * FROM customers WHERE id = ?").get(inv.customer_id) as Row;
   const items = db
     .prepare(
-      "SELECT description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp FROM invoice_items WHERE invoice_id = ? ORDER BY position",
+      `SELECT description, quantity_milli, unit, unit_price_net_cents, tax_rate_bp,
+              discount_type, discount_value, discount_reason,
+              surcharge_type, surcharge_value, surcharge_reason
+         FROM invoice_items WHERE invoice_id = ? ORDER BY position`,
     )
     .all(invoiceId) as Row[];
 
@@ -296,7 +393,16 @@ function buildSidecarRequest(db: Database.Database, invoiceId: number, outputDir
         vat_id: c.vat_id,
         email: c.email,
       },
-      lines: items,
+      lines: items.map((r) => ({
+        description: r.description,
+        quantity_milli: r.quantity_milli,
+        unit: r.unit,
+        unit_price_net_cents: r.unit_price_net_cents,
+        tax_rate_bp: r.tax_rate_bp,
+        discount: rowAdjustment(r.discount_type, r.discount_value, r.discount_reason),
+        surcharge: rowAdjustment(r.surcharge_type, r.surcharge_value, r.surcharge_reason),
+      })),
+      discount: rowAdjustment(inv.discount_type, inv.discount_value, inv.discount_reason),
       payment_terms: inv.notes ?? null,
       order_number: inv.order_number_snapshot ?? null,
       cancels_number: inv.cancels_number ?? null,
@@ -354,6 +460,7 @@ function buildPreviewRequest(
           }
         : { name: "—", street: null, zip: null, city: null, country: "DE", vat_id: null, email: null },
       lines: input.lines,
+      discount: input.discount ?? null,
       payment_terms: input.payment_terms ?? null,
       order_number: orderNumber,
     },

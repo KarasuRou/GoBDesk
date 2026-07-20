@@ -1346,6 +1346,177 @@ button[id^="back-"]:hover {
   font-weight: 700;
 }
 
+/* Positions-Zu-/Abschläge (Rabatt/Aufpreis) im Rechnungs-Editor */
+/* Positions-Zu-/Abschläge (Rabatt/Aufpreis) im Rechnungs-Editor */
+.li-adjust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.li-adj {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.li-adj:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.li-adj-discount {
+  border-left: 3px solid var(--success);
+}
+
+.li-adj-surcharge {
+  border-left: 3px solid var(--warning);
+}
+
+.li-adj-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.li-adj-discount .li-adj-badge {
+  color: var(--success-text);
+}
+
+.li-adj-surcharge .li-adj-badge {
+  color: var(--warning-text);
+}
+
+.li-adj-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.li-adj-controls select {
+  width: 52px !important;
+  padding: 2px 18px 2px 6px !important;
+  font-size: 12px !important;
+  height: 26px !important;
+  border-radius: 4px !important;
+  background-size: 10px !important;
+  background-position: right 4px center !important;
+}
+
+.li-adj-controls input[type="number"] {
+  width: 68px !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  height: 26px !important;
+  border-radius: 4px !important;
+}
+
+.li-adj-controls input[type="text"] {
+  width: 110px !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  height: 26px !important;
+  border-radius: 4px !important;
+}
+
+/* Global Invoice Discount Card */
+.invoice-discount-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.invoice-discount-card:hover {
+  border-color: var(--accent-soft-hover);
+}
+
+.discount-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.discount-icon {
+  stroke: var(--accent);
+}
+
+.adj-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.adj-input-group select {
+  width: 140px !important;
+  height: 34px !important;
+  padding: 4px 28px 4px 10px !important;
+  font-size: 12.5px !important;
+}
+
+.adj-input-group input[type="number"] {
+  width: 100px !important;
+  height: 34px !important;
+  padding: 4px 10px !important;
+  font-size: 12.5px !important;
+}
+
+.adj-input-group input[type="text"] {
+  flex: 1;
+  min-width: 160px;
+  height: 34px !important;
+  padding: 4px 10px !important;
+  font-size: 12.5px !important;
+}
+
+/* Detail view pills */
+.adj-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-top: 4px;
+  margin-right: 6px;
+}
+
+.adj-pill-discount {
+  background: var(--success-soft);
+  color: var(--success-text);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.adj-pill-surcharge {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.adj-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 /* Active state for preview switch button */
 button#preview-invoice.active {
   background: var(--accent);

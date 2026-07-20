@@ -21,6 +21,7 @@ import type {
   InvoiceItemDetail,
   InvoiceLineInput,
   InvoiceListItem,
+  LineAdjustment,
   OrderDetail,
   OrderInput,
   OrderListItem,
@@ -832,7 +833,7 @@ function renderInvoiceDetail(det: InvoiceDetail): void {
     .map(
       (it) => `<tr>
         <td>${it.position}</td>
-        <td>${escapeHtml(it.description)}</td>
+        <td>${escapeHtml(it.description)}${adjDetail(it.discount, "abzgl. Rabatt", "discount")}${adjDetail(it.surcharge, "zzgl. Aufpreis", "surcharge")}</td>
         <td class="num">${(it.quantity_milli / 1000).toLocaleString("de-DE")}</td>
         <td class="num">${eur(it.unit_price_net_cents)}</td>
         <td class="num">${it.tax_rate_bp / 100} %</td>
@@ -843,7 +844,8 @@ function renderInvoiceDetail(det: InvoiceDetail): void {
 
   el("#invoice-detail-totals").innerHTML =
     det.gross_total_cents != null
-      ? `Netto ${eur(det.net_total_cents ?? 0)} · USt ${eur(det.tax_total_cents ?? 0)} · <strong>Brutto ${eur(det.gross_total_cents)}</strong>`
+      ? (det.discount ? `<span class="adj-pill adj-pill-discount">Rechnungs-Rabatt: −${adjText(det.discount)}</span> ` : "") +
+        `Netto ${eur(det.net_total_cents ?? 0)} · USt ${eur(det.tax_total_cents ?? 0)} · <strong>Brutto ${eur(det.gross_total_cents)}</strong>`
       : "";
   const actionButtons: string[] = [];
   if (det.has_pdf) {
@@ -892,7 +894,13 @@ function addItemRow(prefill?: InvoiceItemDetail): void {
     .join("");
   const tr = document.createElement("tr");
   tr.innerHTML = `
-    <td><input class="li-desc" type="text" placeholder="Leistung / Artikel" value="${prefill ? escapeHtml(prefill.description) : ""}" /></td>
+    <td>
+      <input class="li-desc" type="text" placeholder="Leistung / Artikel" value="${prefill ? escapeHtml(prefill.description) : ""}" />
+      <div class="li-adjust">
+        ${adjInputs("li-disc", "Rabatt", "li-adj-discount", prefill?.discount)}
+        ${adjInputs("li-surch", "Aufpreis", "li-adj-surcharge", prefill?.surcharge)}
+      </div>
+    </td>
     <td><input class="li-qty" type="number" step="0.001" value="${prefill ? prefill.quantity_milli / 1000 : 1}" /></td>
     <td><input class="li-unit" type="text" value="${prefill ? escapeHtml(prefill.unit) : "Stk"}" /></td>
     <td><input class="li-price" type="number" step="0.01" value="${prefill ? (prefill.unit_price_net_cents / 100).toFixed(2) : 0}" /></td>
@@ -900,6 +908,60 @@ function addItemRow(prefill?: InvoiceItemDetail): void {
     <td><button type="button" class="link li-remove" title="Position entfernen">✕</button></td>`;
   el("#inv-items").appendChild(tr);
   recomputeTotals();
+}
+
+/** Kompakte Zu-/Abschlag-Eingabe (Typ %/€ + Wert + Grund) für eine Position. */
+function adjInputs(cls: string, label: string, modifierClass: string, a?: LineAdjustment | null): string {
+  const val = a ? String(a.value / 100) : "";
+  return `<span class="li-adj ${modifierClass}">
+    <span class="li-adj-badge">${label}</span>
+    <span class="li-adj-controls">
+      <select class="${cls}-type">
+        <option value="">–</option>
+        <option value="percent" ${a?.type === "percent" ? "selected" : ""}>%</option>
+        <option value="amount" ${a?.type === "amount" ? "selected" : ""}>€</option>
+      </select>
+      <input class="${cls}-val" type="number" step="0.01" min="0" placeholder="Wert" value="${val}" />
+      <input class="${cls}-reason" type="text" placeholder="Grund" value="${a?.reason ? escapeHtml(a.reason) : ""}" />
+    </span>
+  </span>`;
+}
+
+/** Liest einen Zu-/Abschlag aus drei Feldern (Typ %/€ + Wert + Grund) oder null.
+ *  toCents skaliert ×100 – passt für Prozent (30 → 3000 bp) und Betrag (50 → 5000 ct). */
+function readAdj(scope: ParentNode, cls: string): LineAdjustment | null {
+  const type = scope.querySelector<HTMLSelectElement>(`.${cls}-type`)?.value;
+  const raw = scope.querySelector<HTMLInputElement>(`.${cls}-val`)?.value.trim() ?? "";
+  if ((type !== "percent" && type !== "amount") || raw === "") return null;
+  const value = toCents(raw);
+  if (value <= 0) return null;
+  const reason = scope.querySelector<HTMLInputElement>(`.${cls}-reason`)?.value.trim() || null;
+  return { type, value, reason };
+}
+
+/** Rechnungsweiter Rabatt aus dem Summenbereich (oder null). */
+function readInvoiceDiscount(): LineAdjustment | null {
+  const type = el<HTMLSelectElement>("#inv-disc-type").value;
+  const raw = el<HTMLInputElement>("#inv-disc-val").value.trim();
+  if ((type !== "percent" && type !== "amount") || raw === "") return null;
+  const value = toCents(raw);
+  if (value <= 0) return null;
+  const reason = el<HTMLInputElement>("#inv-disc-reason").value.trim() || null;
+  return { type, value, reason };
+}
+
+/** Kurztext eines Zu-/Abschlags für die Anzeige, z. B. „30 % (Animation)". */
+function adjText(a: LineAdjustment): string {
+  const v = a.type === "percent" ? `${a.value / 100} %` : eur(a.value);
+  return a.reason ? `${v} (${escapeHtml(a.reason)})` : v;
+}
+
+/** Zu-/Abschlag-Zeile für die (festgeschriebene) Detailansicht, oder leer. */
+function adjDetail(a: LineAdjustment | null, label: string, type: "discount" | "surcharge" = "discount"): string {
+  if (!a) return "";
+  const cls = type === "discount" ? "adj-pill-discount" : "adj-pill-surcharge";
+  const prefix = type === "discount" ? "−" : "+";
+  return `<span class="adj-pill ${cls}">${label}: ${prefix}${adjText(a)}</span>`;
 }
 
 function readInvoiceLines(): InvoiceLineInput[] {
@@ -913,6 +975,8 @@ function readInvoiceLines(): InvoiceLineInput[] {
       unit: row.querySelector<HTMLInputElement>(".li-unit")!.value.trim() || "Stk",
       unit_price_net_cents: toCents(row.querySelector<HTMLInputElement>(".li-price")!.value),
       tax_rate_bp: Number(row.querySelector<HTMLSelectElement>(".li-tax")!.value),
+      discount: readAdj(row, "li-disc"),
+      surcharge: readAdj(row, "li-surch"),
     });
   });
   return lines;
@@ -923,10 +987,20 @@ function recomputeTotals(): void {
     quantityMilli: l.quantity_milli,
     unitPriceNetCents: l.unit_price_net_cents,
     taxRateBp: l.tax_rate_bp,
+    discount: l.discount,
+    surcharge: l.surcharge,
   }));
-  const t = computeInvoiceTotals(li, isKleinunternehmer);
-  el("#inv-totals").innerHTML =
-    `Netto ${eur(t.netTotalCents)} · USt ${eur(t.taxTotalCents)} · <strong>Brutto ${eur(t.grossTotalCents)}</strong>`;
+  const t = computeInvoiceTotals(li, isKleinunternehmer, readInvoiceDiscount());
+  const parts: string[] = [];
+  if (t.invoiceDiscountCents > 0) {
+    parts.push(`Zwischensumme ${eur(t.lineNetSumCents)}`, `<span class="ok">Rabatt −${eur(t.invoiceDiscountCents)}</span>`);
+  }
+  parts.push(
+    `Netto ${eur(t.netTotalCents)}`,
+    `USt ${eur(t.taxTotalCents)}`,
+    `<strong>Brutto ${eur(t.grossTotalCents)}</strong>`,
+  );
+  el("#inv-totals").innerHTML = parts.join(" · ");
 }
 
 function closeInvoiceEditor(): void {
@@ -974,6 +1048,11 @@ async function openInvoiceEditor(
   el<HTMLInputElement>("#inv-service").value = draft?.service_date ?? today();
   el<HTMLInputElement>("#inv-terms").value =
     draft?.notes ?? "Zahlbar innerhalb von 14 Tagen ohne Abzug.";
+  el<HTMLSelectElement>("#inv-disc-type").value = draft?.discount?.type ?? "";
+  el<HTMLInputElement>("#inv-disc-val").value = draft?.discount
+    ? String(draft.discount.value / 100)
+    : "";
+  el<HTMLInputElement>("#inv-disc-reason").value = draft?.discount?.reason ?? "";
   el("#inv-items").innerHTML = "";
   el("#invoice-error").textContent = "";
   hideInvoicePreview();
@@ -991,6 +1070,7 @@ function collectDraft(): DraftInvoiceInput {
     service_date: el<HTMLInputElement>("#inv-service").value,
     payment_terms: el<HTMLInputElement>("#inv-terms").value.trim() || null,
     order_id: Number(el<HTMLSelectElement>("#inv-order").value) || null,
+    discount: readInvoiceDiscount(),
     lines,
   };
 }
@@ -1035,6 +1115,7 @@ function collectDraftLenient(): DraftInvoiceInput {
     service_date: el<HTMLInputElement>("#inv-service").value,
     payment_terms: el<HTMLInputElement>("#inv-terms").value.trim() || null,
     order_id: Number(el<HTMLSelectElement>("#inv-order").value) || null,
+    discount: readInvoiceDiscount(),
     lines: readInvoiceLines(),
   };
 }
@@ -1754,6 +1835,7 @@ el("#save-draft").addEventListener("click", () => void saveDraft());
 el("#issue-invoice").addEventListener("click", () => void issueNow());
 el("#preview-invoice").addEventListener("click", () => void toggleDraftPreview());
 el("#inv-items").addEventListener("input", recomputeTotals);
+el("#invoice-discount").addEventListener("input", recomputeTotals);
 el("#inv-items").addEventListener("click", (ev) => {
   const remove = (ev.target as HTMLElement).closest(".li-remove");
   if (!remove) return;

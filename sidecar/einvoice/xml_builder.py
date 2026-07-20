@@ -49,8 +49,8 @@ def build_data_dict(inv: Invoice) -> dict:
         "BT-55": buyer.country,
         "BT-58": buyer.email,
         # Summen (BG-22)
-        "BT-106": _amt(inv.net_total_cents),   # Summe Nettobeträge der Positionen
-        "BT-109": _amt(inv.net_total_cents),   # Steuerbasis gesamt
+        "BT-106": _amt(inv.line_net_sum_cents),  # Summe Nettobeträge der Positionen
+        "BT-109": _amt(inv.net_total_cents),   # Steuerbasis gesamt (nach Rechnungs-Rabatt)
         "BT-111": _amt(inv.tax_total_cents),   # USt gesamt (Rechnungswährung)
         "BT-111-1": inv.currency,
         "BT-112": _amt(inv.gross_total_cents),  # Bruttobetrag
@@ -70,6 +70,21 @@ def build_data_dict(inv: Invoice) -> dict:
         # Stornobeleg auch in der E-Rechnung maschinenlesbar rückbeziehbar.
         dd["BG-3"] = [{"BT-25": inv.cancels_number}]
 
+    if inv.invoice_discount_cents > 0:
+        # Rechnungsweiter Rabatt: Summe (BT-107) + je Steuersatz ein Nachlass
+        # auf Dokumentebene (BG-20). Grund ist Pflicht (BR-33).
+        dd["BT-107"] = _amt(inv.invoice_discount_cents)
+        reason = inv.discount.reason if inv.discount and inv.discount.reason else "Rabatt"
+        dd["BG-20"] = [
+            {
+                "BT-92": _amt(a.amount_cents),  # Nachlassbetrag
+                "BT-95": a.category,            # USt-Kategorie des Nachlasses
+                "BT-96": _rate(a.rate_bp),      # USt-Satz des Nachlasses
+                "BT-97": reason,                # Grund (BR-33)
+            }
+            for a in inv.allowances_by_rate
+        ]
+
     if seller.vat_id:
         dd["BT-31"] = seller.vat_id
     if seller.tax_number:
@@ -79,18 +94,35 @@ def build_data_dict(inv: Invoice) -> dict:
 
     for i, line in enumerate(inv.lines, start=1):
         category, rate_bp = inv.line_category(line)
-        dd["BG-25"].append(
-            {
-                "BT-126": str(i),                     # Positionsnummer
-                "BT-153": line.description,           # Artikelname
-                "BT-146": _amt(line.unit_price_net_cents),  # Nettoeinzelpreis
-                "BT-129": f"{line.quantity}",         # Menge
-                "BT-130": line.unit,                  # Einheit (UN/ECE Rec 20)
-                "BT-131": _amt(line.net_cents),       # Nettobetrag der Position
-                "BT-151": category,                   # USt-Kategorie
-                "BT-152": _rate(rate_bp),             # USt-Satz
-            }
-        )
+        entry: dict = {
+            "BT-126": str(i),                     # Positionsnummer
+            "BT-153": line.description,           # Artikelname
+            "BT-146": _amt(line.unit_price_net_cents),  # Nettoeinzelpreis
+            "BT-129": f"{line.quantity}",         # Menge
+            "BT-130": line.unit,                  # Einheit (UN/ECE Rec 20)
+            "BT-131": _amt(line.net_cents),       # Nettobetrag der Position (BT-146×Menge − Rabatt + Aufpreis)
+            "BT-151": category,                   # USt-Kategorie
+            "BT-152": _rate(rate_bp),             # USt-Satz
+        }
+        if line.discount_cents:
+            # Positions-Rabatt (BG-27); Grund ist Pflicht (BR-42).
+            entry["BG-27"] = [
+                {
+                    "BT-136": _amt(line.discount_cents),  # Nachlassbetrag
+                    "BT-137": _amt(line.base_cents),      # Grundbetrag
+                    "BT-139": line.discount.reason if line.discount and line.discount.reason else "Rabatt",
+                }
+            ]
+        if line.surcharge_cents:
+            # Positions-Aufpreis (BG-28); Grund ist Pflicht (BR-44).
+            entry["BG-28"] = [
+                {
+                    "BT-141": _amt(line.surcharge_cents),  # Zuschlagsbetrag
+                    "BT-142": _amt(line.base_cents),       # Grundbetrag
+                    "BT-144": line.surcharge.reason if line.surcharge and line.surcharge.reason else "Aufpreis",
+                }
+            ]
+        dd["BG-25"].append(entry)
 
     for row in inv.breakdown:
         entry = {

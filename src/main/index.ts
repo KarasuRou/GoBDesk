@@ -8,6 +8,7 @@ import { app, BrowserWindow, Menu, nativeTheme } from "electron";
 import type Database from "better-sqlite3";
 
 import { listJournal, listJournalForInvoice, verifyAuditChain, verifyGobd } from "../core/gobd.js";
+import { computeInvoiceTotals } from "../core/tax.js";
 import { initDatabase } from "./db.js";
 import { createExpense, euerReport, getExpense, listEuerYears, updateExpense } from "./expenses.js";
 import {
@@ -180,6 +181,74 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
     const validation = await validateInvoice(issued.pdf_path as string, pdfOpts.sidecarDir);
     const validateOk = validation.ok === true && validation.valid === true;
     out.validate = { valid: validation.valid, errors: validation.errors?.length ?? 0 };
+
+    // --- Rabatte & Aufpreise: Positions-BG-27/BG-28 + Rechnungs-BG-20 ---
+    // Positions-Aufpreis (+30 %), absoluter Positions-Rabatt und 10 % Rechnungs-
+    // Rabatt bei gemischten Steuersätzen. Prüft: eingefrorene Beträge == tax.ts,
+    // EN-16931-Validierung des erzeugten XML und korrektes Rücklesen der Adjustments.
+    const adjLines = [
+      {
+        description: "Illustration",
+        quantity_milli: 1000,
+        unit: "C62",
+        unit_price_net_cents: 100000,
+        tax_rate_bp: 1900,
+        surcharge: { type: "percent" as const, value: 3000, reason: "Animation" },
+      },
+      {
+        description: "Nebenkosten",
+        quantity_milli: 1000,
+        unit: "C62",
+        unit_price_net_cents: 50000,
+        tax_rate_bp: 700,
+        discount: { type: "amount" as const, value: 5000, reason: "Treuerabatt" },
+      },
+    ];
+    const adjInvoiceDiscount = { type: "percent" as const, value: 1000, reason: "Aktionsrabatt" };
+    const adjDraftId = createDraftInvoice(db, {
+      customer_id: custId,
+      issue_date: "2026-07-09",
+      service_date: "2026-07-08",
+      payment_terms: "Zahlbar in 14 Tagen.",
+      discount: adjInvoiceDiscount,
+      lines: adjLines,
+    });
+    const adjExpected = computeInvoiceTotals(
+      adjLines.map((l) => ({
+        quantityMilli: l.quantity_milli,
+        unitPriceNetCents: l.unit_price_net_cents,
+        taxRateBp: l.tax_rate_bp,
+        discount: l.discount ?? null,
+        surcharge: l.surcharge ?? null,
+      })),
+      false,
+      adjInvoiceDiscount,
+    );
+    const adjIssued = await issueInvoiceWithPdf(db, adjDraftId, pdfOpts);
+    const adjValidation = await validateInvoice(adjIssued.pdf_path as string, pdfOpts.sidecarDir);
+    const adjDetail = getInvoice(db, adjDraftId);
+    const discountsOk =
+      adjIssued.net_total_cents === adjExpected.netTotalCents &&
+      adjIssued.tax_total_cents === adjExpected.taxTotalCents &&
+      adjIssued.gross_total_cents === adjExpected.grossTotalCents &&
+      adjValidation.ok === true &&
+      adjValidation.valid === true &&
+      adjDetail?.discount?.type === "percent" &&
+      adjDetail?.discount?.value === 1000 &&
+      adjDetail?.items[0]?.surcharge?.value === 3000 &&
+      adjDetail?.items[1]?.discount?.value === 5000;
+    out.discounts = {
+      ok: discountsOk,
+      net: adjIssued.net_total_cents,
+      tax: adjIssued.tax_total_cents,
+      gross: adjIssued.gross_total_cents,
+      expected: {
+        net: adjExpected.netTotalCents,
+        tax: adjExpected.taxTotalCents,
+        gross: adjExpected.grossTotalCents,
+      },
+      valid: adjValidation.valid,
+    };
 
     // PDF-Vorschau (Basis-Layout) liefert PDF-Bytes.
     const previewBytes = await previewDraftPdf(
@@ -529,7 +598,7 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       verfdok.includes("Musterberatung Rouven") &&
       verfdok.includes("Journal-Hash-Kette") === false && // Fließtext, kein Debug-Dump
       verfdok.includes("## 3. Technische Systemdokumentation") &&
-      verfdok.includes("Migration 8") &&
+      verfdok.includes("Migration 9") &&
       verfdok.includes(smokeText) &&
       verfdokHtml.includes("<h2>3. Technische Systemdokumentation</h2>") &&
       verfdokHtml.includes(smokeText) &&
@@ -615,6 +684,7 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       draftEditOk &&
       pdfExists &&
       validateOk &&
+      discountsOk &&
       previewOk &&
       paymentOk &&
       filterOk &&

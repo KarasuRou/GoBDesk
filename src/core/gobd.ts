@@ -10,7 +10,15 @@ import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 
 import type { GobdQuickCheck, GobdReport, JournalEntry } from "../shared/api.js";
-import { computeInvoiceTotals, roundDiv, type LineInput } from "./tax.js";
+import { computeInvoiceTotals, roundDiv, type Adjustment, type LineInput } from "./tax.js";
+
+/** Baut aus den DB-Rohwerten (Typ/Wert) einen Zu-/Abschlag oder null. */
+function toAdjustment(type: unknown, value: unknown): Adjustment | null {
+  if ((type === "percent" || type === "amount") && typeof value === "number") {
+    return { type, value };
+  }
+  return null;
+}
 
 export class GobdError extends Error {
   constructor(message: string) {
@@ -27,12 +35,12 @@ export interface IssueResult {
 }
 
 /** Aktuelles Format des content_hash (siehe invoiceContentHash / Migrationen 0005/0006/0008). */
-export const INVOICE_HASH_VERSION = 4;
+export const INVOICE_HASH_VERSION = 5;
 
 /** Kerndaten, aus denen der revisionssichere Rechnungs-Hash gebildet wird. */
 export interface InvoiceHashFields {
   /** Formatversion: 1 = Basis, 2 = inkl. Auftragsnummer, 3 = inkl. Storno-Referenz,
-   *  4 = inkl. Käuferanschrift. */
+   *  4 = inkl. Käuferanschrift, 5 = inkl. Rechnungs-Rabatt. */
   version: number;
   number: string;
   issueDate: string;
@@ -47,6 +55,10 @@ export interface InvoiceHashFields {
   cancelsNumber?: string | null;
   /** Rechnungsanschrift des Käufers zum Festschreibe-Zeitpunkt (GoBD Rz. 76). */
   buyerAddress?: string | null;
+  /** Rechnungsweiter Rabatt (ab v5, EN 16931 BG-20): Erfassungsart 'percent'/'amount'. */
+  invoiceDiscountType?: string | null;
+  /** Rechnungsweiter Rabatt (ab v5): Wert in Basispunkten (percent) bzw. Cent (amount). */
+  invoiceDiscountValue?: number | null;
 }
 
 function sha256Hex(data: string): string {
@@ -66,6 +78,8 @@ export function invoiceContentHash(f: InvoiceHashFields): string {
   if (f.version >= 2) canonical += `|order=${f.orderNumber ?? ""}`;
   if (f.version >= 3) canonical += `|cancels=${f.cancelsNumber ?? ""}`;
   if (f.version >= 4) canonical += `|addr=${f.buyerAddress ?? ""}`;
+  if (f.version >= 5)
+    canonical += `|disc=${f.invoiceDiscountType ?? ""}:${f.invoiceDiscountValue ?? ""}`;
   return sha256Hex(canonical);
 }
 
@@ -105,7 +119,9 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
   const run = db.transaction((id: number): IssueResult => {
     const inv = db
       .prepare(
-        "SELECT status, customer_id, service_date, issue_date, order_id, cancels_invoice_id FROM invoices WHERE id = ?",
+        `SELECT status, customer_id, service_date, issue_date, order_id, cancels_invoice_id,
+                discount_type, discount_value
+           FROM invoices WHERE id = ?`,
       )
       .get(id) as
       | {
@@ -115,6 +131,8 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
           issue_date: string | null;
           order_id: number | null;
           cancels_invoice_id: number | null;
+          discount_type: string | null;
+          discount_value: number | null;
         }
       | undefined;
 
@@ -153,7 +171,8 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
 
     const rawLines = db
       .prepare(
-        `SELECT position, quantity_milli, unit_price_net_cents, tax_rate_bp
+        `SELECT position, quantity_milli, unit_price_net_cents, tax_rate_bp,
+                discount_type, discount_value, surcharge_type, surcharge_value
            FROM invoice_items WHERE invoice_id = ? ORDER BY position`,
       )
       .all(id) as Array<{
@@ -161,6 +180,10 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
       quantity_milli: number;
       unit_price_net_cents: number;
       tax_rate_bp: number;
+      discount_type: string | null;
+      discount_value: number | null;
+      surcharge_type: string | null;
+      surcharge_value: number | null;
     }>;
 
     if (rawLines.length === 0) throw new GobdError("keine Positionen");
@@ -169,8 +192,11 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
       quantityMilli: r.quantity_milli,
       unitPriceNetCents: r.unit_price_net_cents,
       taxRateBp: r.tax_rate_bp,
+      discount: toAdjustment(r.discount_type, r.discount_value),
+      surcharge: toAdjustment(r.surcharge_type, r.surcharge_value),
     }));
-    const totals = computeInvoiceTotals(lineInputs, isKu);
+    const invoiceDiscount = toAdjustment(inv.discount_type, inv.discount_value);
+    const totals = computeInvoiceTotals(lineInputs, isKu, invoiceDiscount);
 
     const issueDate = inv.issue_date ?? new Date().toISOString().slice(0, 10);
     const year = issueDate.slice(0, 4);
@@ -208,6 +234,8 @@ export function issueInvoice(db: Database.Database, invoiceId: number): IssueRes
       orderNumber,
       cancelsNumber,
       buyerAddress,
+      invoiceDiscountType: invoiceDiscount?.type ?? null,
+      invoiceDiscountValue: invoiceDiscount?.value ?? null,
     });
     const now = new Date().toISOString();
     assertClockMonotonic(db, now);
@@ -455,6 +483,7 @@ function verifyInvoiceHashes(db: Database.Database): GobdReport["invoices"] {
               i.is_kleinunternehmer_snapshot AS ku, i.content_hash,
               i.hash_version AS hv, i.order_number_snapshot AS order_no,
               i.buyer_address_snapshot AS buyer_addr,
+              i.discount_type AS disc_type, i.discount_value AS disc_value,
               o.invoice_number AS cancels_no,
               COALESCE(i.buyer_name_snapshot, c.company_name, c.contact_last_name, '') AS customer_name
          FROM invoices i
@@ -476,6 +505,8 @@ function verifyInvoiceHashes(db: Database.Database): GobdReport["invoices"] {
     hv: number | null;
     order_no: string | null;
     buyer_addr: string | null;
+    disc_type: string | null;
+    disc_value: number | null;
     cancels_no: string | null;
     customer_name: string;
   }>;
@@ -496,6 +527,8 @@ function verifyInvoiceHashes(db: Database.Database): GobdReport["invoices"] {
       orderNumber: r.order_no,
       cancelsNumber: r.cancels_no,
       buyerAddress: r.buyer_addr,
+      invoiceDiscountType: r.disc_type,
+      invoiceDiscountValue: r.disc_value,
     });
     if (recomputed === r.content_hash) hashOk += 1;
     else tampered.push({ id: r.id, invoiceNumber: r.invoice_number ?? `#${r.id}` });

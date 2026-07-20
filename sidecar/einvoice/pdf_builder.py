@@ -97,6 +97,15 @@ def build_pdf(inv: Invoice, path: str) -> str:
             str(i), line.description, _qty(line.quantity_milli), line.unit,
             _eur(line.unit_price_net_cents), f"{rate_bp // 100} %", _eur(line.net_cents),
         ])
+        notes = []
+        if line.discount_cents:
+            r = line.discount.reason if line.discount and line.discount.reason else "Rabatt"
+            notes.append(f"abzgl. {r}: -{_eur(line.discount_cents)}")
+        if line.surcharge_cents:
+            r = line.surcharge.reason if line.surcharge and line.surcharge.reason else "Aufpreis"
+            notes.append(f"zzgl. {r}: +{_eur(line.surcharge_cents)}")
+        if notes:
+            rows.append(["", Paragraph(" &#183; ".join(notes), small), "", "", "", "", ""])
     items = Table(rows, colWidths=[11 * mm, 60 * mm, 16 * mm, 16 * mm, 25 * mm, 12 * mm, 25 * mm])
     items.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, -1), FONT),
@@ -111,7 +120,12 @@ def build_pdf(inv: Invoice, path: str) -> str:
     story.append(items)
     story.append(Spacer(1, 4 * mm))
 
-    totals = [["Nettobetrag", _eur(inv.net_total_cents)]]
+    totals = []
+    if inv.invoice_discount_cents > 0:
+        r = inv.discount.reason if inv.discount and inv.discount.reason else "Rabatt"
+        totals.append(["Zwischensumme netto", _eur(inv.line_net_sum_cents)])
+        totals.append([f"abzgl. {r}", "-" + _eur(inv.invoice_discount_cents)])
+    totals.append(["Nettobetrag", _eur(inv.net_total_cents)])
     for row in inv.breakdown:
         if not inv.is_kleinunternehmer and row.rate_bp > 0:
             totals.append([f"zzgl. USt {row.rate_bp // 100} %", _eur(row.tax_cents)])

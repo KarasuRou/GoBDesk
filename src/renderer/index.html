@@ -239,6 +239,24 @@
                 </table>
                 <button type="button" id="add-item" class="secondary small">+ Position</button>
 
+                <div id="invoice-discount" class="invoice-discount-card">
+                  <div class="discount-card-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="discount-icon"><path d="m19 5-7 7-7-7"/><path d="m5 19 7-7 7 7"/></svg>
+                    <span>Gesamtrabatt (Rechnungsebene)</span>
+                  </div>
+                  <div class="discount-card-inputs">
+                    <div class="adj-input-group">
+                      <select id="inv-disc-type" aria-label="Rabatt-Typ">
+                        <option value="">Kein Rabatt</option>
+                        <option value="percent">Prozent (%)</option>
+                        <option value="amount">Betrag (€)</option>
+                      </select>
+                      <input id="inv-disc-val" type="number" step="0.01" min="0" placeholder="Wert" />
+                      <input id="inv-disc-reason" type="text" placeholder="Grund (z.B. Skonto, Treuerabatt)" />
+                    </div>
+                  </div>
+                </div>
+
                 <div id="inv-totals" class="totals"></div>
 
                 <div class="form-actions">

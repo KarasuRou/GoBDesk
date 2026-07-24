@@ -410,6 +410,7 @@ function buildSidecarRequest(db: Database.Database, invoiceId: number, outputDir
         email: s.email,
         iban: s.iban,
         bic: s.bic,
+        paypal: s.paypal,
       },
       buyer: {
         name: c.company_name ?? c.contact_last_name,
@@ -475,6 +476,7 @@ function buildPreviewRequest(
         email: s.email,
         iban: s.iban,
         bic: s.bic,
+        paypal: s.paypal,
       },
       buyer: c
         ? {

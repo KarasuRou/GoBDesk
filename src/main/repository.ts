@@ -39,7 +39,7 @@ export function getSettings(db: Database.Database): CompanySettings | null {
   const row = db
     .prepare(
       `SELECT id, legal_name, address_line1, zip, city, country_iso,
-              tax_number, vat_id, is_kleinunternehmer, email, iban, bic
+              tax_number, vat_id, is_kleinunternehmer, email, iban, bic, paypal
          FROM company_settings WHERE id = 1`,
     )
     .get() as CompanySettings | undefined;
@@ -56,7 +56,7 @@ export function updateSettings(db: Database.Database, input: CompanySettingsInpu
        legal_name = @legal_name, address_line1 = @address_line1, zip = @zip, city = @city,
        country_iso = @country_iso, tax_number = @tax_number, vat_id = @vat_id,
        is_kleinunternehmer = @is_kleinunternehmer, email = @email, iban = @iban, bic = @bic,
-       updated_at = @updated_at
+       paypal = @paypal, updated_at = @updated_at
      WHERE id = 1`,
   ).run({
     legal_name: legalName,
@@ -70,6 +70,7 @@ export function updateSettings(db: Database.Database, input: CompanySettingsInpu
     email: cleanOrNull(input.email),
     iban: cleanOrNull(input.iban),
     bic: cleanOrNull(input.bic),
+    paypal: cleanOrNull(input.paypal),
     updated_at: new Date().toISOString(),
   });
 }

@@ -53,6 +53,7 @@ Daten und liefert PDF/XML bzw. Text zurück – er fasst weder `audit_log` noch
 | `0009_line_and_invoice_discounts` | Positions-Rabatt/-Aufpreis (`invoice_items`: Typ %/€, Wert, Grund) + Rechnungs-Rabatt (`invoices`); `trg_invoices_block_update`-Neubau (Rabatt in der Storno-Whitelist), Teil des Hash v5 |
 | `0010_invoice_installments` | `invoice_installments` (Soll-Zahlungsplan/Ratenplan: Fälligkeit + Betrag) + Sperr-Trigger (nach Festschreibung unveränderbar). Reine Soll-Daten – der Ist-Zufluss bleibt in `payments` (EÜR) |
 | `0011_other_income_and_dunning` | `other_income` (sonstige Betriebseinnahmen außerhalb einer Rechnung, z. B. **Mahngebühren** – Zufluss, i. d. R. **ohne USt**); `dunning_notices` (erzeugte Mahnstufe je Rechnung, Grundlage der Eskalation) |
+| `0012_company_paypal` | `company_settings.paypal` – PayPal als alternativer Zahlweg neben IBAN/BIC (Rechnungs- und Mahnfuß). Reine Stammdaten, keine Sperr-Trigger betroffen |
 
 Kernkonventionen: **Geld = Integer-Cent, Steuersatz = Basispunkte (1900 = 19 %),
 Menge = Milli**; Datums-/Zeitwerte als ISO-8601-Text. `STRICT`-Tabellen erzwingen

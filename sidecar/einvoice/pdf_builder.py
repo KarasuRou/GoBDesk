@@ -189,6 +189,11 @@ def build_pdf(inv: Invoice, path: str) -> str:
         footer.append(f"IBAN: {s.iban}")
     if s.bic:
         footer.append(f"BIC: {s.bic}")
+    # DESIGN: PayPal steht als gleichwertiger Zahlweg direkt hinter der
+    # Bankverbindung in derselben Fußzeile – kein eigener Block, damit der
+    # Rechnungsfuß eine ruhige Zeile bleibt.
+    if s.paypal:
+        footer.append(f"PayPal: {s.paypal}")
     if s.email:
         footer.append(s.email)
     story.append(Paragraph(" &#183; ".join(footer), small))

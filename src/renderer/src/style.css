@@ -1,88 +1,65 @@
 :root {
-  /* Font Family Stack */
+  /* Font Family Stack – nur lokal vorhandene Schriften. Inter wird genutzt, wenn
+     es auf dem System installiert ist; zum Mitliefern eine .woff2 unter
+     src/renderer/assets/ ablegen und hier per @font-face einbinden. Ein Nachladen
+     von fonts.googleapis.com kommt nicht in Frage: GoBDesk soll offline laufen und
+     nicht bei jedem Start die IP des Nutzers an Dritte melden. */
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
 
-  /* Color Palette - Modern Slate & Indigo (Light Theme) */
-  --bg: #f8fafc;
-  --card: #ffffff;
-  --sidebar: #ffffff;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --border-focus: #6366f1;
+  /* Color Palette - Deep Obsidian Slate & Neon Indigo (Target Dark Theme) */
+  --bg: #090d16;
+  --card: #111827;
+  --sidebar: #0d1320;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: #1e293b;
+  --border-hover: #334155;
+  --border-focus: #818cf8;
 
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef2ff;
-  --accent-soft-hover: #e0e7ff;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --accent-soft-hover: rgba(99, 102, 241, 0.25);
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --accent-glow: 0 0 20px rgba(99, 102, 241, 0.35);
 
   --success: #10b981;
-  --success-soft: #ecfdf5;
-  --success-text: #047857;
+  --success-soft: rgba(16, 185, 129, 0.15);
+  --success-text: #34d399;
 
   --warning: #f59e0b;
-  --warning-soft: #fef3c7;
-  --warning-text: #b45309;
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --warning-text: #fbbf24;
 
-  --danger: #ef4444;
-  --danger-hover: #dc2626;
-  --danger-soft: #fee2e2;
-  --danger-text: #b91c1c;
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --danger-text: #fca5a5;
 
-  --info: #3b82f6;
-  --info-soft: #eff6ff;
-  --info-text: #1d4ed8;
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.15);
+  --info-text: #7dd3fc;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 24px -4px rgba(0, 0, 0, 0.55), 0 4px 8px -2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 48px -6px rgba(0, 0, 0, 0.7), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.25);
+
   --radius-sm: 6px;
   --radius: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Color Palette - Deep Slate (Dark Theme) */
-    --bg: #090d16;
-    --card: #111827;
-    --sidebar: #0f172a;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --border: #1e293b;
-    --border-focus: #818cf8;
-
-    --accent: #6366f1;
-    --accent-hover: #4f46e5;
-    --accent-soft: rgba(99, 102, 241, 0.12);
-    --accent-soft-hover: rgba(99, 102, 241, 0.2);
-    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-
-    --success: #10b981;
-    --success-soft: rgba(16, 185, 129, 0.12);
-    --success-text: #34d399;
-
-    --warning: #f59e0b;
-    --warning-soft: rgba(245, 158, 11, 0.12);
-    --warning-text: #fbbf24;
-
-    --danger: #f87171;
-    --danger-hover: #ef4444;
-    --danger-soft: rgba(248, 113, 113, 0.12);
-    --danger-text: #fca5a5;
-
-    --info: #60a5fa;
-    --info-soft: rgba(96, 165, 250, 0.12);
-    --info-text: #93c5fd;
-
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-  }
+/* DESIGN: GoBDesk ist bewusst durchgehend dunkel – auch unter einem hellen
+   System-Theme. Deshalb kein prefers-color-scheme-Zweig (der hier nur dieselben
+   Werte ein zweites Mal gesetzt hätte), sondern eine feste Erklärung an den
+   Browser, damit auch Scrollbalken, Datums-Picker und Select-Popups dunkel
+   gezeichnet werden. */
+:root {
+  color-scheme: dark;
 }
 
 * {
@@ -95,6 +72,8 @@ body {
   margin: 0;
   padding: 0;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -121,7 +100,7 @@ body {
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
+  background: var(--border-hover);
 }
 
 /* Titelleiste (Electron rahmenloses Fenster ziehen) */
@@ -138,7 +117,7 @@ body {
 
 .titlebar .brand {
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   font-size: 14px;
   text-transform: uppercase;
   color: var(--text);
@@ -154,7 +133,7 @@ body {
   margin-right: 10px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
+  box-shadow: 0 0 12px var(--accent);
 }
 
 .titlebar-update {
@@ -168,15 +147,17 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: var(--accent);
+  background: var(--accent-gradient);
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  box-shadow: var(--shadow-glow);
+  transition: all 0.2s ease;
 }
 
 .titlebar-update:hover {
-  filter: brightness(1.12);
+  filter: brightness(1.15);
+  transform: translateY(-1px);
 }
 
 .shell {
@@ -190,8 +171,8 @@ body {
   flex: 0 0 220px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 24px 16px;
+  gap: 6px;
+  padding: 24px 14px;
   background: var(--sidebar);
   border-right: 1px solid var(--border);
   overflow-y: auto;
@@ -199,6 +180,7 @@ body {
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start !important;
@@ -212,29 +194,50 @@ body {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  box-shadow: none !important;
+  outline: none !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
 }
 
 .nav-item:hover {
-  background: var(--accent-soft);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
+  box-shadow: none !important;
 }
 
 .nav-item.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: var(--border-focus) !important;
   font-weight: 600;
-  box-shadow: inset 4px 0 0 var(--accent);
+  box-shadow: none !important;
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 99px;
+  box-shadow: none;
 }
 
 .sidebar-icon {
   flex-shrink: 0;
   stroke-width: 2.2;
+  transition: transform 0.2s ease, stroke 0.2s ease;
+}
+
+.nav-item:hover .sidebar-icon {
+  transform: scale(1.08);
+  stroke: var(--border-focus);
 }
 
 .nav-item.active .sidebar-icon {
-  stroke: var(--accent);
+  stroke: var(--border-focus);
 }
 
 /* Hauptinhaltsbereich */
@@ -272,10 +275,11 @@ body {
   padding: 24px;
   margin-bottom: 24px;
   max-width: 100%;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .card:hover {
+  border-color: var(--border-hover);
   box-shadow: var(--shadow-md);
 }
 
@@ -337,13 +341,21 @@ body {
 
 .stat {
   margin-bottom: 0;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.stat:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: var(--shadow-md), 0 0 12px rgba(99, 102, 241, 0.15);
 }
 
 .stat-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--muted);
 }
 
@@ -353,6 +365,7 @@ body {
   margin-top: 6px;
   letter-spacing: -0.02em;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Buttons */
@@ -366,7 +379,7 @@ button {
   background: var(--accent-gradient);
   color: #ffffff;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
@@ -375,9 +388,9 @@ button {
 }
 
 button:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.15);
   transform: translateY(-1px);
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45);
 }
 
 button:active {
@@ -386,33 +399,18 @@ button:active {
 }
 
 button.secondary {
-  background: var(--bg);
-  color: var(--text);
-  border: 2px solid var(--border);
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
   box-shadow: var(--shadow-sm);
   padding: 8px 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  button.secondary {
-    background: #1e293b;
-    border-color: #384252;
-    color: #f8fafc;
-  }
-}
-
 button.secondary:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-@media (prefers-color-scheme: dark) {
-  button.secondary:hover {
-    background: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: #ffffff !important;
-  }
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
 }
 
 button.small {
@@ -424,7 +422,7 @@ button.small {
 button.danger {
   background: var(--danger-soft);
   color: var(--danger-text);
-  border: 2px solid var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.4);
   box-shadow: var(--shadow-sm);
   padding: 8px 16px;
 }
@@ -447,35 +445,42 @@ button.danger:hover {
 
 .banner {
   border-radius: var(--radius);
-  padding: 10px 14px;
-  margin-bottom: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
   font-size: 13px;
   border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .banner-error {
   background: var(--danger-soft);
-  border-color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.3);
   color: var(--danger-text);
 }
 
 .banner-warn {
   background: var(--accent-soft);
-  border-color: var(--border);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
 }
 
 button.link {
   border: none;
   background: transparent;
-  color: var(--accent);
+  color: var(--border-focus);
   padding: 4px 8px;
   font-size: 13px;
   box-shadow: none;
   border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 button.link:hover {
   background: var(--accent-soft);
+  color: #a5b4fc;
   text-decoration: none;
   transform: none;
   box-shadow: none;
@@ -491,38 +496,77 @@ button.link:hover {
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   padding: 4px 10px;
   border-radius: 9999px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--border-focus);
+  border: 1px solid rgba(99, 102, 241, 0.25);
   font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
 }
 
+.badge::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .badge.badge-draft {
   background: var(--warning-soft);
+  border-color: rgba(245, 158, 11, 0.3);
   color: var(--warning-text);
 }
 
 .badge.badge-issued {
   background: var(--info-soft);
+  border-color: rgba(56, 189, 248, 0.3);
   color: var(--info-text);
 }
 
 .badge.badge-paid {
   background: var(--success-soft);
+  border-color: rgba(16, 185, 129, 0.3);
   color: var(--success-text);
+}
+
+.badge.badge-partial {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--warning-text);
 }
 
 .badge.badge-open {
   background: var(--danger-soft);
+  border-color: rgba(248, 113, 113, 0.3);
   color: var(--danger-text);
 }
 
 .badge.badge-cancelled {
-  background: var(--border);
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.3);
   color: var(--muted);
+}
+
+.badge.badge-tag {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11.5px;
+  padding: 3px 10px;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  border-radius: 999px;
+  display: inline-block;
+  line-height: 1;
+}
+
+.badge.badge-tag::before {
+  display: none;
 }
 
 /* Formulare als schwebende Modals (CSS-Backdrop-Trick) */
@@ -536,7 +580,8 @@ button.link:hover {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 9999px rgba(9, 13, 22, 0.6), var(--shadow-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08), var(--shadow-lg);
+  backdrop-filter: blur(12px);
   padding: 32px;
   z-index: 1000;
   margin-top: 0;
@@ -587,7 +632,7 @@ textarea {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background-color: var(--bg) !important;
+  background-color: #0f172a !important;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
   width: 100%;
@@ -602,13 +647,13 @@ input[type="search"]:focus,
 select:focus,
 textarea:focus {
   border-color: var(--border-focus) !important;
-  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
 }
 
 select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
   background-repeat: no-repeat !important;
   background-position: right 12px center !important;
   background-size: 14px !important;
@@ -649,7 +694,7 @@ select {
 
 .result {
   background: var(--accent-soft);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(99, 102, 241, 0.3);
   border-radius: var(--radius);
   padding: 16px;
   margin-top: 16px;
@@ -662,12 +707,12 @@ select {
 
 .result.result-ok {
   background: var(--success-soft);
-  border-color: var(--success);
+  border-color: rgba(16, 185, 129, 0.4);
 }
 
 .result.result-err {
   background: var(--danger-soft);
-  border-color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.4);
 }
 
 .gobd-report-head {
@@ -726,7 +771,7 @@ select {
 }
 
 .mono {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -741,15 +786,58 @@ select {
 
 .journal-mini {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 12px 0 0 0;
+  padding: 0 0 0 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  border-left: 2px solid var(--border);
+  position: relative;
 }
 
 .journal-mini li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   font-size: 13px;
+  padding: 8px 14px;
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.2s ease;
+}
+
+.journal-mini li::before {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-focus);
+  box-shadow: 0 0 8px var(--border-focus);
+}
+
+.journal-mini li:hover {
+  border-color: var(--border-hover);
+}
+
+.journal-mini-time {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.journal-mini-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Listen & Tabellen */
@@ -769,6 +857,7 @@ table.invoices-list th {
   color: var(--muted);
   font-weight: 700;
   padding: 12px 14px;
+  background: #0d1320;
   border-bottom: 2px solid var(--border);
 }
 
@@ -779,8 +868,12 @@ table.invoices-list td {
   vertical-align: middle;
 }
 
+table.invoices-list tbody tr {
+  transition: background-color 0.15s ease;
+}
+
 table.invoices-list tbody tr:hover {
-  background: var(--accent-soft);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 table.items input,
@@ -792,7 +885,7 @@ table.items select {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: #0f172a;
 }
 
 table.items input:focus,
@@ -804,12 +897,14 @@ table.items select:focus {
 table.items td:nth-child(2) input,
 table.items td:nth-child(4) input {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .invoices-list .num,
 table.items td.num {
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .invoices-list .nowrap {
@@ -840,6 +935,7 @@ table.invoices-list td {
   margin-top: 8px;
   font-size: 15px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* EÜR & Jahresauswahl */
@@ -872,6 +968,7 @@ table.invoices-list td {
   padding: 12px 6px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .euer-line.sub {
@@ -891,12 +988,12 @@ table.invoices-list td {
 }
 
 .euer-line.total strong {
-  color: var(--accent);
+  color: var(--border-focus);
 }
 
 .euer-cats {
   margin-top: 24px;
-  background: var(--bg);
+  background: var(--sidebar);
   border-radius: var(--radius-md);
   padding: 16px;
   border: 1px solid var(--border);
@@ -931,8 +1028,9 @@ table.invoices-list td {
 
 .hint {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
   margin: 20px 0 0;
+  line-height: 1.5;
 }
 
 /* Detail-Ansichten (Kunde, Rechnung etc.) */
@@ -985,7 +1083,7 @@ table.invoices-list td {
   flex-wrap: wrap;
   margin-bottom: 20px;
   padding: 16px;
-  background: var(--bg);
+  background: var(--sidebar);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
@@ -1038,9 +1136,9 @@ table.invoices-list td {
   justify-content: center;
   overflow-y: auto;
   padding: 24px;
-  background: rgba(9, 13, 22, 0.6);
+  background: rgba(5, 8, 15, 0.75);
   z-index: 2000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(10px);
 }
 
 .modal-overlay.hidden {
@@ -1055,10 +1153,8 @@ table.invoices-list td {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08), var(--shadow-lg);
   padding: 24px 28px;
-  /* Eigene Keyframes: fadeInScale gehört zu den selbst-positionierten .form-
-     Modals und würde hier das flex-zentrierte Modal dauerhaft verschieben. */
   animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1132,27 +1228,19 @@ table.invoices-list td {
   gap: 6px;
   padding: 6px 14px;
   margin: 0 8px 8px 0;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 9999px;
-  background: var(--bg);
+  background: #1e293b;
   font-size: 13px;
-  color: var(--text);
+  color: #f8fafc;
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s;
-}
-
-@media (prefers-color-scheme: dark) {
-  .link-chip {
-    background: #1e293b;
-    border-color: #384252;
-    color: #f8fafc;
-  }
+  transition: all 0.2s ease;
 }
 
 .link-chip:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--border-focus);
 }
 
 .link-chip .link {
@@ -1163,7 +1251,7 @@ table.invoices-list td {
 
 .form-row.link-add {
   align-items: flex-end;
-  background: var(--bg);
+  background: var(--sidebar);
   padding: 16px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -1185,7 +1273,6 @@ table.invoices-list td {
   width: 100%;
 }
 
-/* Wenn Vorschau aktiv ist, machen wir ein Split-Screen-Layout */
 @media (min-width: 1024px) {
   .invoice-editor-container:has(#invoice-preview:not(.hidden)) {
     display: grid;
@@ -1202,7 +1289,7 @@ table.invoices-list td {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: #ffffff;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
 }
 
 /* Custom styling for invoice editor fields */
@@ -1210,7 +1297,7 @@ table.invoices-list td {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  background: var(--bg);
+  background: var(--sidebar);
   padding: 24px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -1255,9 +1342,9 @@ table.invoices-list td {
 
 /* Emphasize Back Buttons */
 button[id^="back-"] {
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
   padding: 8px 16px;
   font-size: 13px;
   box-shadow: var(--shadow-sm);
@@ -1271,7 +1358,7 @@ button[id^="back-"] {
 button[id^="back-"]:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent);
+  color: #ffffff;
 }
 
 /* Styling buttons inside link-chips to look like small pills */
@@ -1320,33 +1407,11 @@ button[id^="back-"]:hover {
   color: var(--danger-hover) !important;
 }
 
-/* Tags styling inside tables */
-.badge.badge-tag {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 11.5px;
-  padding: 3px 10px;
-  margin-right: 4px;
-  margin-bottom: 2px;
-  border-radius: 999px;
-  display: inline-block;
-  line-height: 1;
-}
-
-@media (prefers-color-scheme: dark) {
-  .badge.badge-tag {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--muted);
-  }
-}
-
 .ok {
-  color: var(--success);
+  color: var(--success-text);
   font-weight: 700;
 }
 
-/* Positions-Zu-/Abschläge (Rabatt/Aufpreis) im Rechnungs-Editor */
 /* Positions-Zu-/Abschläge (Rabatt/Aufpreis) im Rechnungs-Editor */
 .li-adjust {
   display: flex;
@@ -1359,7 +1424,7 @@ button[id^="back-"]:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg);
+  background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
@@ -1373,10 +1438,12 @@ button[id^="back-"]:hover {
 
 .li-adj-discount {
   border-left: 3px solid var(--success);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 .li-adj-surcharge {
   border-left: 3px solid var(--warning);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .li-adj-badge {
@@ -1427,12 +1494,12 @@ button[id^="back-"]:hover {
   border-radius: 4px !important;
 }
 
-/* Global Invoice Discount Card */
+/* Global Invoice Discount & Installment Cards */
 .invoice-discount-card {
-  background: var(--bg);
+  background: var(--sidebar);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
   margin: 16px 0;
   display: flex;
   flex-direction: column;
@@ -1441,20 +1508,20 @@ button[id^="back-"]:hover {
 }
 
 .invoice-discount-card:hover {
-  border-color: var(--accent-soft-hover);
+  border-color: var(--border-hover);
 }
 
 .discount-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
 .discount-icon {
-  stroke: var(--accent);
+  stroke: var(--border-focus);
 }
 
 .adj-input-group {
@@ -1492,13 +1559,10 @@ button[id^="back-"]:hover {
 .link.suggested {
   font-weight: 700;
   text-decoration: underline;
+  color: var(--border-focus);
 }
 
-/* DESIGN: Ratenplan (Soll-Zahlungsplan) – kompakte Zeilen ohne Tabellengitter,
-   damit die Karte leicht bleibt. Eingabefelder sind niedriger (32px) als im
-   Hauptformular, weil es sich um eine untergeordnete Zusatzangabe handelt.
-   Fußzeile: "+ Rate" links, Summen-Hinweis direkt daneben (nicht rechtsbündig),
-   damit der Bezug zur Aktion sichtbar bleibt. */
+/* DESIGN: Ratenplan (Soll-Zahlungsplan) – kompakte Zeilen ohne Tabellengitter */
 .installments-table {
   width: 100%;
   border-collapse: collapse;
@@ -1524,19 +1588,22 @@ button[id^="back-"]:hover {
 }
 #inst-sum-hint {
   font-size: 12px;
+  font-weight: 500;
 }
 
 /* Detail view pills */
 .adj-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
+  gap: 6px;
+  padding: 3px 10px;
   border-radius: 99px;
   font-size: 11.5px;
   font-weight: 600;
-  margin-top: 4px;
-  margin-right: 6px;
+  margin-left: 12px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  vertical-align: middle;
 }
 
 .adj-pill-discount {
@@ -1564,43 +1631,15 @@ button#preview-invoice.active {
   color: #ffffff !important;
 }
 
-/* Navigation Active Indicator Capsule */
-.nav-item {
-  position: relative;
-}
-.nav-item.active {
-  background: var(--accent-soft) !important;
-  color: var(--accent) !important;
-  font-weight: 600;
-  box-shadow: none !important;
-}
-.nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
-  background: var(--accent-gradient);
-  border-radius: 99px;
-  box-shadow: 0 0 8px var(--accent);
-}
-.nav-item .sidebar-icon {
-  transition: transform 0.2s ease;
-}
-.nav-item:hover .sidebar-icon {
-  transform: scale(1.08);
-}
-
 /* Custom styled Checkbox */
 input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 4px;
-  background-color: var(--bg) !important;
+  background-color: #0f172a !important;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1649,16 +1688,6 @@ input[type="checkbox"]:checked::after {
   line-height: 1.45;
 }
 
-/* Table enhancements */
-table.items th,
-table.invoices-list th {
-  background: var(--bg);
-  border-bottom: 2px solid var(--border);
-}
-table.invoices-list tbody tr {
-  transition: background-color 0.15s ease;
-}
-
 /* Journal Chain Badges */
 .journal-chain {
   display: inline-flex;
@@ -1671,14 +1700,14 @@ table.invoices-list tbody tr {
   line-height: 1;
 }
 .journal-chain .mono {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   font-weight: 600;
 }
 .journal-chain.ok {
   background: var(--success-soft) !important;
   color: var(--success-text) !important;
-  border: 1.5px solid rgba(16, 185, 129, 0.2);
+  border: 1.5px solid rgba(16, 185, 129, 0.3);
 }
 .journal-chain.ok::before {
   content: "✔";
@@ -1687,7 +1716,7 @@ table.invoices-list tbody tr {
 .journal-chain.err {
   background: var(--danger-soft) !important;
   color: var(--danger-text) !important;
-  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
 }
 .journal-chain.err::before {
   content: "✗";
@@ -1702,18 +1731,12 @@ table.invoices-list tbody tr {
   padding: 16px 20px;
   border: 1.5px dashed var(--border);
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.01);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--muted);
   font-size: 13px;
   font-weight: 500;
   width: 100%;
   margin-top: 8px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .detail-meta span.muted {
-    background: rgba(255, 255, 255, 0.01);
-  }
 }
 
 /* Table Empty State Styling */
@@ -1727,7 +1750,7 @@ table.invoices-list tbody tr {
   margin: 0 auto 12px;
   display: block;
   stroke: var(--accent);
-  opacity: 0.65;
+  opacity: 0.75;
 }
 
 .table-empty-state .title {

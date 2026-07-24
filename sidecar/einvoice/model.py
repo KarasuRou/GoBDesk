@@ -96,6 +96,7 @@ class Party:
     email: str | None = None
     iban: str | None = None
     bic: str | None = None
+    paypal: str | None = None
 
     @classmethod
     def from_json(cls, d: dict) -> "Party":
@@ -110,6 +111,7 @@ class Party:
             email=d.get("email"),
             iban=d.get("iban"),
             bic=d.get("bic"),
+            paypal=d.get("paypal"),
         )
 
 

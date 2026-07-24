@@ -540,6 +540,10 @@ async function renderSettings(): Promise<void> {
             <span class="settings-label">Bankverbindung (BIC)</span>
             <span class="settings-value">${escapeHtml(s.bic) || "—"}</span>
           </div>
+          <div class="settings-item">
+            <span class="settings-label">PayPal</span>
+            <span class="settings-value">${escapeHtml(s.paypal) || "—"}</span>
+          </div>
          </div>`
       : `<span class="muted">Noch keine Firmendaten hinterlegt. Klicke auf „Bearbeiten", um sie einzutragen – sie erscheinen auf jeder Rechnung.</span>`;
   await renderStorageInfo();
@@ -562,6 +566,7 @@ function readCompanyForm(): CompanySettingsInput {
     email: v("email") || null,
     iban: v("iban") || null,
     bic: v("bic") || null,
+    paypal: v("paypal") || null,
   };
 }
 
@@ -582,6 +587,7 @@ function fillCompanyForm(s: CompanySettings | null): void {
   set("email", s?.email ?? "");
   set("iban", s?.iban ?? "");
   set("bic", s?.bic ?? "");
+  set("paypal", s?.paypal ?? "");
 }
 
 async function openCompanyForm(): Promise<void> {
@@ -821,6 +827,31 @@ function invoiceActions(i: InvoiceListItem): string {
   return parts.join(" ");
 }
 
+function getInvoiceStatusCategory(i: InvoiceListItem): "offen" | "teilweise" | "bezahlt" | "entwurf" | "storniert" {
+  if (i.status === "draft") return "entwurf";
+  if (i.status === "cancelled" || i.cancels_invoice_id != null) return "storniert";
+  if (i.gross_total_cents != null && i.paid_cents >= i.gross_total_cents) return "bezahlt";
+  if (i.paid_cents > 0) return "teilweise";
+  return "offen";
+}
+
+function getInvoiceStatusPriority(cat: string): number {
+  switch (cat) {
+    case "offen":
+      return 1;
+    case "teilweise":
+      return 2;
+    case "bezahlt":
+      return 3;
+    case "entwurf":
+      return 4;
+    case "storniert":
+      return 5;
+    default:
+      return 6;
+  }
+}
+
 async function ensureInvoiceFilterCustomers(): Promise<void> {
   const sel = el<HTMLSelectElement>("#inv-filter-customer");
   const current = sel.value;
@@ -843,7 +874,26 @@ function currentInvoiceFilter(): InvoiceFilter {
 
 async function renderInvoices(): Promise<void> {
   await ensureInvoiceFilterCustomers();
-  const invoices = await api.listInvoices(currentInvoiceFilter());
+  let invoices = await api.listInvoices(currentInvoiceFilter());
+
+  // Filter nach Status falls im UI gewählt
+  const statusFilter = el<HTMLSelectElement>("#inv-filter-status")?.value;
+  if (statusFilter) {
+    invoices = invoices.filter((i) => getInvoiceStatusCategory(i) === statusFilter);
+  }
+
+  // Automatisches Sortieren: Offen => teilweise => bezahlt => entwurf => storno/storniert
+  // Sub-Sortierung nach Rechnungsnummer (absteigend)
+  invoices.sort((a, b) => {
+    const prioA = getInvoiceStatusPriority(getInvoiceStatusCategory(a));
+    const prioB = getInvoiceStatusPriority(getInvoiceStatusCategory(b));
+    if (prioA !== prioB) return prioA - prioB;
+    return (b.invoice_number || "").localeCompare(a.invoice_number || "", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+
   el("#invoices-list").innerHTML =
     invoices.length === 0
       ? `<tr>
@@ -963,9 +1013,26 @@ function renderInvoiceDetail(det: InvoiceDetail): void {
   el("#invoice-detail-pdf").innerHTML = actionButtons.join(" ");
   el("#invoice-validation").innerHTML = "";
 
-  el("#payment-status").innerHTML = `<span>${PAYMENT_STATUS[det.payment_status]}</span><strong>Bezahlt ${eur(
-    det.paid_cents,
-  )} · Offen ${eur(det.remaining_cents)}</strong>`;
+  const payBadgeCls =
+    det.payment_status === "bezahlt"
+      ? "badge-paid"
+      : det.payment_status === "teilweise"
+      ? "badge-partial"
+      : "badge-open";
+  const payStatusText =
+    det.payment_status === "bezahlt"
+      ? "Bezahlt"
+      : det.payment_status === "teilweise"
+      ? "Teilweise bezahlt"
+      : "Offen";
+
+  const pBadge = el("#payment-status-badge");
+  if (pBadge) pBadge.innerHTML = `<span class="badge ${payBadgeCls}">${payStatusText}</span>`;
+  const pSum = el("#payment-status-summary");
+  if (pSum)
+    pSum.innerHTML = `Bezahlt <span style="color: var(--success-text);">${eur(
+      det.paid_cents,
+    )}</span> · Offen <span style="color: var(--danger-text);">${eur(det.remaining_cents)}</span>`;
   el("#payments-list").innerHTML =
     det.payments.length === 0
       ? `<tr><td colspan="4" class="muted">Noch keine Zahlungen.</td></tr>`
@@ -2098,11 +2165,12 @@ el("#customer-invoices").addEventListener("click", (ev) => {
 });
 
 // Rechnungs-Filter
-["#inv-filter-customer", "#inv-filter-from", "#inv-filter-to"].forEach((s) =>
+["#inv-filter-customer", "#inv-filter-status", "#inv-filter-from", "#inv-filter-to"].forEach((s) =>
   el(s).addEventListener("change", () => void renderInvoices()),
 );
 el("#inv-filter-reset").addEventListener("click", () => {
   el<HTMLSelectElement>("#inv-filter-customer").value = "";
+  el<HTMLSelectElement>("#inv-filter-status").value = "";
   el<HTMLInputElement>("#inv-filter-from").value = "";
   el<HTMLInputElement>("#inv-filter-to").value = "";
   void renderInvoices();
@@ -2234,7 +2302,9 @@ el("#invoice-detail").addEventListener("click", async (ev) => {
   }
   const openDoc = t.closest<HTMLElement>("[data-open-linked-doc]");
   if (openDoc) {
-    void api.openDocument(Number(openDoc.dataset.openLinkedDoc));
+    const id = Number(openDoc.dataset.openLinkedDoc);
+    showView("documents");
+    void openDocumentDetail(id);
     return;
   }
   const del = t.closest<HTMLElement>("[data-del-payment]");
@@ -2456,7 +2526,10 @@ const ENTITY_LABEL: Record<string, string> = {
   invoice: "Rechnung",
   payment: "Zahlung",
   expense: "Ausgabe",
+  income: "Einnahme",
   document: "Dokument",
+  backup: "Sicherung",
+  verfdok: "Verfahrensdokumentation",
 };
 
 function journalChainCell(e: JournalEntry): string {
@@ -2506,9 +2579,13 @@ async function renderInvoiceJournal(id: number): Promise<void> {
     ? `<ul class="journal-mini">${entries
         .map(
           (e) =>
-            `<li><span class="muted">${escapeHtml(fmtDateTime(e.at))}</span> — ${escapeHtml(
-              e.summary,
-            )} ${journalChainCell(e)}</li>`,
+            `<li>
+              <div class="journal-mini-text">
+                <span>${escapeHtml(e.summary)}</span>
+                ${journalChainCell(e)}
+              </div>
+              <span class="journal-mini-time">${escapeHtml(fmtDateTime(e.at))}</span>
+            </li>`,
         )
         .join("")}</ul>`
     : `<span class="muted">Keine Journaleinträge.</span>`;
@@ -2674,7 +2751,10 @@ el("#documents-list").addEventListener("click", (ev) => {
     return;
   }
   const open = t.closest<HTMLElement>("[data-doc-open]");
-  if (open) void api.openDocument(Number(open.dataset.docOpen));
+  if (open) {
+    showView("documents");
+    void openDocumentDetail(Number(open.dataset.docOpen));
+  }
 });
 el("#back-documents").addEventListener("click", backToDocuments);
 el("#document-form").addEventListener("submit", (ev) => void submitDocument(ev));
@@ -2729,7 +2809,11 @@ el("#document-links").addEventListener("click", (ev) => {
 function wireLinkedDocOpen(container: string): void {
   el(container).addEventListener("click", (ev) => {
     const t = (ev.target as HTMLElement).closest<HTMLElement>("[data-open-linked-doc]");
-    if (t) void api.openDocument(Number(t.dataset.openLinkedDoc));
+    if (t) {
+      const id = Number(t.dataset.openLinkedDoc);
+      showView("documents");
+      void openDocumentDetail(id);
+    }
   });
 }
 wireLinkedDocOpen("#customer-documents");
@@ -2789,7 +2873,11 @@ el("#order-invoices").addEventListener("click", (ev) => {
 });
 el("#order-documents").addEventListener("click", (ev) => {
   const d = (ev.target as HTMLElement).closest<HTMLElement>("[data-order-open-doc]");
-  if (d) void api.openDocument(Number(d.dataset.orderOpenDoc));
+  if (d) {
+    const id = Number(d.dataset.orderOpenDoc);
+    showView("documents");
+    void openDocumentDetail(id);
+  }
 });
 
 showView("dashboard");

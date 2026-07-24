@@ -227,10 +227,18 @@ export function renderDunningHtml(
 ): DunningDocument {
   const s = db
     .prepare(
-      "SELECT legal_name, address_line1, zip, city, iban, bic FROM company_settings WHERE id = 1",
+      "SELECT legal_name, address_line1, zip, city, iban, bic, paypal FROM company_settings WHERE id = 1",
     )
     .get() as
-    | { legal_name: string; address_line1: string; zip: string; city: string; iban: string | null; bic: string | null }
+    | {
+        legal_name: string;
+        address_line1: string;
+        zip: string;
+        city: string;
+        iban: string | null;
+        bic: string | null;
+        paypal: string | null;
+      }
     | undefined;
 
   const inv = db
@@ -324,11 +332,16 @@ export function renderDunningHtml(
        <p class="note">Noch nicht fällige Raten bleiben von diesem Schreiben unberührt.</p>`
     : "";
 
-  const bank = s.iban
-    ? `<div class="bank">Bitte überweisen Sie auf: IBAN ${escapeHtml(s.iban)}${
-        s.bic ? ` · BIC ${escapeHtml(s.bic)}` : ""
-      }. Verwendungszweck: ${escapeHtml(num)}.</div>`
-    : "";
+  // DESIGN: Zahlwege als eine Zeile am Ende des Briefes – IBAN zuerst, PayPal als
+  // Alternative dahinter. Der Verwendungszweck steht nur einmal am Schluss, damit
+  // die Zeile nicht zur Aufzählung wird.
+  const ways: string[] = [];
+  if (s.iban) ways.push(`IBAN ${escapeHtml(s.iban)}${s.bic ? ` · BIC ${escapeHtml(s.bic)}` : ""}`);
+  if (s.paypal) ways.push(`PayPal ${escapeHtml(s.paypal)}`);
+  const bank =
+    ways.length > 0
+      ? `<div class="bank">Bitte zahlen Sie auf: ${ways.join(" oder ")}. Verwendungszweck: ${escapeHtml(num)}.</div>`
+      : "";
 
   const feeNote =
     fee > 0

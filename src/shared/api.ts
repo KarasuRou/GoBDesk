@@ -13,6 +13,7 @@ export interface CompanySettings {
   email: string | null;
   iban: string | null;
   bic: string | null;
+  paypal: string | null;
 }
 
 export type CompanySettingsInput = Omit<CompanySettings, "id">;

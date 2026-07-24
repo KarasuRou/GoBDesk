@@ -123,8 +123,11 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       email: "info@musterberatung.de",
       iban: "DE02120300000000202051",
       bic: "BYLADEM1001",
+      paypal: "paypal.me/musterberatung",
     });
-    const settingsOk = getSettings(db)?.legal_name === "Musterberatung Rouven";
+    const stored = getSettings(db);
+    const settingsOk =
+      stored?.legal_name === "Musterberatung Rouven" && stored.paypal === "paypal.me/musterberatung";
     const demo = runDemoInvoice(db);
     const auditIntact = verifyAuditChain(db) === null;
 
@@ -631,7 +634,7 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       verfdok.includes("Musterberatung Rouven") &&
       verfdok.includes("Journal-Hash-Kette") === false && // Fließtext, kein Debug-Dump
       verfdok.includes("## 3. Technische Systemdokumentation") &&
-      verfdok.includes("Migration 11") &&
+      verfdok.includes("Migration 12") &&
       verfdok.includes(smokeText) &&
       verfdokHtml.includes("<h2>3. Technische Systemdokumentation</h2>") &&
       verfdokHtml.includes(smokeText) &&

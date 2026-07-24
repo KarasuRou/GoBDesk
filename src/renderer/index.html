@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GoBDesk</title>
+    <!-- Bewusst keine Web-Fonts von fremden Servern: GoBDesk arbeitet offline und
+         darf beim Start keine Verbindung nach außen aufbauen (siehe --font-sans). -->
   </head>
   <body>
     <header class="titlebar">
@@ -303,9 +305,18 @@
 
           <section id="invoice-list-card" class="card wide">
             <div class="filter-bar">
-              <label
-                >Kunde
+              <label>Kunde
                 <select id="inv-filter-customer"><option value="">Alle</option></select>
+              </label>
+              <label>Status
+                <select id="inv-filter-status">
+                  <option value="">Alle Status</option>
+                  <option value="offen">Offen</option>
+                  <option value="teilweise">Teilweise bezahlt</option>
+                  <option value="bezahlt">Bezahlt</option>
+                  <option value="entwurf">Entwurf</option>
+                  <option value="storniert">Storniert / Storno</option>
+                </select>
               </label>
               <label>Von <input id="inv-filter-from" type="date" /></label>
               <label>Bis <input id="inv-filter-to" type="date" /></label>
@@ -357,8 +368,13 @@
             <h3>Verknüpfte Dokumente</h3>
             <div id="invoice-documents" class="detail-meta"></div>
 
-            <h3>Zahlungen</h3>
-            <div id="payment-status" class="euer-line total"></div>
+            <div class="card-head" style="margin-top: 24px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="margin: 0; border: none; padding: 0;">Zahlungen</h3>
+                <div id="payment-status-badge"></div>
+              </div>
+              <div id="payment-status-summary" style="font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;"></div>
+            </div>
             <table class="invoices-list">
               <thead>
                 <tr>
@@ -759,6 +775,14 @@
                 <label class="grow">IBAN <input name="iban" type="text" /></label>
                 <label class="grow">BIC <input name="bic" type="text" /></label>
               </div>
+              <!-- DESIGN: PayPal steht gleichwertig neben der Bankverbindung, aber in
+                   einer eigenen Zeile – es ist ein alternativer Zahlweg, kein Teil der
+                   IBAN/BIC-Einheit. Der Platzhalter zeigt beide erlaubten Formen. -->
+              <div class="form-row">
+                <label class="grow">PayPal
+                  <input name="paypal" type="text" placeholder="E-Mail oder paypal.me/name" />
+                </label>
+              </div>
               <div class="form-actions">
                 <button type="submit">Speichern</button>
                 <button type="button" id="cancel-company" class="secondary">Abbrechen</button>
@@ -839,6 +863,7 @@
                   <option value="invoice">Rechnungen</option>
                   <option value="payment">Zahlungen</option>
                   <option value="expense">Ausgaben</option>
+                  <option value="income">Einnahmen</option>
                   <option value="document">Dokumente</option>
                   <option value="system">System (Sicherung/VerfDok)</option>
                 </select>

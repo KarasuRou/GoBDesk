@@ -966,6 +966,16 @@ function describeAudit(
       return { reference: desc, summary: `Ausgabe korrigiert: ${amount(payload.gross_cents)}`, relatedInvoiceId: null };
     return { reference: desc, summary: `Ausgabe · ${action}`, relatedInvoiceId: null };
   }
+  if (entityType === "income") {
+    const desc = typeof payload.description === "string" ? payload.description : null;
+    const invId = typeof payload.invoice_id === "number" ? payload.invoice_id : null;
+    const amt = amount(payload.gross_cents);
+    if (action === "CREATE")
+      return { reference: desc, summary: `Sonstige Einnahme erfasst${amt ? `: ${amt}` : ""}`, relatedInvoiceId: invId };
+    if (action === "UPDATE")
+      return { reference: desc, summary: `Sonstige Einnahme korrigiert${amt ? `: ${amt}` : ""}`, relatedInvoiceId: invId };
+    return { reference: desc, summary: `Sonstige Einnahme · ${action}`, relatedInvoiceId: invId };
+  }
   if (entityType === "backup") {
     return {
       reference: typeof payload.path === "string" ? payload.path : null,

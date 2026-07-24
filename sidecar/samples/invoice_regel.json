@@ -18,7 +18,8 @@
       "tax_number": "214/123/45678",
       "email": "info@musterberatung.de",
       "iban": "DE02120300000000202051",
-      "bic": "BYLADEM1001"
+      "bic": "BYLADEM1001",
+      "paypal": "paypal.me/musterberatung"
     },
     "buyer": {
       "name": "Beispielkunde GmbH",

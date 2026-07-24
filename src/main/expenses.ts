@@ -202,6 +202,19 @@ export function euerReport(db: Database.Database, year: number): EuerReport {
     inc.ust += roundDiv(p.ust * p.paid, p.gross);
   }
 
+  // Sonstige Betriebseinnahmen (z. B. Mahngebühren) – Zufluss im Jahr, i. d. R.
+  // ohne USt (Schadensersatz). Sie stehen bewusst nicht in `payments`, damit sie
+  // nicht mit dem USt-Split der Rechnung verrechnet werden.
+  const otherIncomeRows = db
+    .prepare(
+      "SELECT net_cents, tax_cents, gross_cents FROM other_income WHERE substr(income_date, 1, 4) = ?",
+    )
+    .all(y) as Array<{ net_cents: number; tax_cents: number; gross_cents: number }>;
+  for (const r of otherIncomeRows) {
+    inc.net += isKu ? r.gross_cents : r.net_cents;
+    if (!isKu) inc.ust += r.tax_cents;
+  }
+
   const rows = db
     .prepare(
       `SELECT c.name AS category, e.net_cents, e.tax_cents, e.gross_cents, e.deductible_permille
@@ -254,6 +267,8 @@ export function listEuerYears(db: Database.Database): number[] {
          SELECT CAST(substr(paid_at, 1, 4) AS INTEGER) AS y FROM payments WHERE paid_at IS NOT NULL
          UNION
          SELECT CAST(substr(COALESCE(payment_date, expense_date), 1, 4) AS INTEGER) AS y FROM expenses
+         UNION
+         SELECT CAST(substr(income_date, 1, 4) AS INTEGER) AS y FROM other_income
        ) WHERE y IS NOT NULL
        ORDER BY y DESC`,
     )

@@ -68,6 +68,23 @@ class DocAllowance:
 
 
 @dataclass
+class Installment:
+    """Eine geplante Rate eines Soll-Zahlungsplans (Ratenplan) – nur Vereinbarung."""
+
+    seq: int
+    due_date: date
+    amount_cents: int
+
+    @classmethod
+    def from_json(cls, d: dict) -> "Installment":
+        return cls(
+            seq=int(d.get("seq", 0)),
+            due_date=date.fromisoformat(d["due_date"]),
+            amount_cents=int(d["amount_cents"]),
+        )
+
+
+@dataclass
 class Party:
     name: str
     street: str | None
@@ -140,6 +157,7 @@ class Invoice:
     cancels_number: str | None = None  # stornierte Originalrechnung (EN 16931 BT-25)
     discount: Adjustment | None = None  # rechnungsweiter Rabatt (EN 16931 BG-20)
     breakdown: list[TaxRow] = field(default_factory=list)
+    installments: list[Installment] = field(default_factory=list)  # Soll-Zahlungsplan (Ratenplan)
     line_net_sum_cents: int = 0      # Summe Positions-Netto vor Rechnungs-Rabatt (BT-106)
     invoice_discount_cents: int = 0  # Rechnungs-Rabatt gesamt (BT-107)
     allowances_by_rate: list[DocAllowance] = field(default_factory=list)
@@ -176,6 +194,7 @@ class Invoice:
             order_number=d.get("order_number"),
             cancels_number=d.get("cancels_number"),
             discount=Adjustment.from_json(d.get("discount")),
+            installments=[Installment.from_json(x) for x in d.get("installments") or []],
         )
         inv._compute()
         return inv

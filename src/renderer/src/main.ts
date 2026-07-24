@@ -11,6 +11,7 @@ import type {
   DocumentListItem,
   DocumentType,
   DraftInvoiceInput,
+  InstallmentInput,
   LinkTargets,
   EuerCategory,
   ExpenseDetail,
@@ -22,6 +23,9 @@ import type {
   InvoiceLineInput,
   InvoiceListItem,
   LineAdjustment,
+  OtherIncomeDetail,
+  OtherIncomeInput,
+  OtherIncomeListItem,
   OrderDetail,
   OrderInput,
   OrderListItem,
@@ -36,6 +40,7 @@ type ViewName =
   | "dashboard"
   | "customers"
   | "invoices"
+  | "dunning"
   | "orders"
   | "euer"
   | "documents"
@@ -109,6 +114,7 @@ function showView(name: ViewName): void {
     resetInvoiceView();
     void renderInvoices();
   }
+  else if (name === "dunning") void renderDunning();
   else if (name === "orders") {
     el("#order-detail").classList.add("hidden");
     el("#order-form").classList.add("hidden");
@@ -126,11 +132,63 @@ function showView(name: ViewName): void {
   else if (name === "settings") void renderSettings();
 }
 
+// --- Mahnungen ------------------------------------------------------------
+const DUNNING_LEVELS: Record<number, string> = {
+  1: "Erinnerung",
+  2: "1. Mahnung",
+  3: "2. Mahnung",
+};
+
+/* DESIGN: Nüchterne Arbeitsliste im Stil der übrigen Tabellen (.invoices-list).
+   Der Blick soll zuerst auf „Jetzt fällig" fallen – dieser Betrag wird angemahnt,
+   nicht der Gesamtoffene. Bei Ratenzahlung erscheint darunter ein kleiner Hinweis
+   auf die Ratenanzahl. Alle drei Stufen sind immer sichtbar (kein verstecktes
+   Menü), die laut Historie nächste ist per .suggested hervorgehoben – der Nutzer
+   kann aber jederzeit abweichen. Leere Liste ist ein positiver, ruhiger Zustand. */
+async function renderDunning(): Promise<void> {
+  const overdue = await api.listOverdueInvoices();
+  const body = el("#dunning-list");
+  el("#dunning-msg").textContent = "";
+  if (overdue.length === 0) {
+    body.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:16px;">Keine überfälligen Rechnungen. 🎉</td></tr>`;
+    return;
+  }
+  body.innerHTML = overdue
+    .map(
+      (o) => `<tr>
+        <td>${escapeHtml(o.invoice_number ?? "—")}</td>
+        <td>${escapeHtml(o.customer_name ?? "—")}${
+          o.installment_count > 0
+            ? `<div class="adj-note">Ratenplan: ${o.installment_count} Raten</div>`
+            : ""
+        }</td>
+        <td>${fmtDate(o.due_date)} <span class="muted">(${o.days_overdue} Tage)</span></td>
+        <td class="num">${eur(o.open_cents)}</td>
+        <td class="num"><strong>${eur(o.due_now_cents)}</strong></td>
+        <td>${o.last_level > 0 ? escapeHtml(DUNNING_LEVELS[o.last_level] ?? "—") : "—"}</td>
+        <td>
+          ${[1, 2, 3]
+            .map(
+              (lv) =>
+                `<button class="link${lv === o.next_level ? " suggested" : ""}" data-dun="${lv}" data-id="${o.id}">${DUNNING_LEVELS[lv]}</button>`,
+            )
+            .join(" ")}
+        </td>
+      </tr>`,
+    )
+    .join("");
+}
+
 // --- Dashboard ------------------------------------------------------------
 
-/** Warnbanner: automatischer Integritäts-Check + IKS-Backup-Erinnerung. */
+/** Warnbanner: Integritäts-Check, IKS-Backup-Erinnerung + Kleinunternehmer-Grenzen (§19). */
 async function renderDashboardWarnings(): Promise<void> {
-  const [quick, storage] = await Promise.all([api.gobdQuickCheck(), api.getStorageInfo()]);
+  const year = new Date().getFullYear();
+  const [quick, storage, settings] = await Promise.all([
+    api.gobdQuickCheck(),
+    api.getStorageInfo(),
+    api.getSettings(),
+  ]);
   const banners: string[] = [];
 
   if (!quick.ok) {
@@ -161,6 +219,42 @@ async function renderDashboardWarnings(): Promise<void> {
           : `Letzte Sicherung vor ${backupDays} Tagen.`
       } <button class="link" data-goto-settings>Jetzt sichern…</button></div>`,
     );
+  }
+
+  /* DESIGN: KU-Grenze als Dashboard-Banner in derselben Reihe wie Integritäts- und
+     Backup-Hinweis – kein eigener Kasten, keine Dauer-Anzeige. Zwei Eskalationsstufen:
+     Annäherung = ruhiges .banner-warn, Überschreitung = .banner-error, weil dann
+     Handlungsbedarf besteht. Immer mit konkretem Umsatzbetrag, damit die Warnung
+     nachvollziehbar ist, und mit Sprung in die Einstellungen statt Automatik. */
+  // Kleinunternehmer-Grenzen (§19 UStG, Fassung ab 2025): Vorjahr 25.000 €,
+  // laufendes Jahr 100.000 € – Überschreiten der 100.000 € beendet die
+  // KU-Eigenschaft sofort. Umsatz = vereinnahmte Entgelte (Zufluss, für KU brutto=netto).
+  if (settings?.is_kleinunternehmer) {
+    const [cur, prev] = await Promise.all([api.euerReport(year), api.euerReport(year - 1)]);
+    const PRIOR = 2_500_000; // 25.000 €
+    const CURR = 10_000_000; // 100.000 €
+    if (prev.income_net_cents > PRIOR) {
+      banners.push(
+        `<div class="banner banner-error">📈 <strong>Kleinunternehmer-Grenze:</strong> Vorjahresumsatz ${eur(prev.income_net_cents)}
+          über 25.000 € – die §19-Regelung gilt ${year} nicht mehr. Besteuerung in den
+          <button class="link" data-goto-settings>Einstellungen</button> prüfen.</div>`,
+      );
+    } else if (cur.income_net_cents > CURR) {
+      banners.push(
+        `<div class="banner banner-error">📈 <strong>Kleinunternehmer-Grenze:</strong> Jahresumsatz ${eur(cur.income_net_cents)}
+          über 100.000 € – die §19-Eigenschaft endet <strong>sofort</strong> ab dem überschreitenden Umsatz.</div>`,
+      );
+    } else if (cur.income_net_cents > CURR * 0.9) {
+      banners.push(
+        `<div class="banner banner-warn">📈 Jahresumsatz ${eur(cur.income_net_cents)} nähert sich der
+          <strong>100.000-€</strong>-Grenze (§19) – bei Überschreiten endet die Kleinunternehmer-Regelung sofort.</div>`,
+      );
+    } else if (cur.income_net_cents > PRIOR * 0.9) {
+      banners.push(
+        `<div class="banner banner-warn">📈 Jahresumsatz ${eur(cur.income_net_cents)} nähert sich der
+          <strong>25.000-€</strong>-Grenze (§19) – ab dem Folgejahr ggf. keine Kleinunternehmer-Regelung mehr.</div>`,
+      );
+    }
   }
 
   el("#dash-warnings").innerHTML = banners.join("");
@@ -682,6 +776,7 @@ async function runUpdateCheck(manual: boolean): Promise<void> {
 let taxRates: TaxRate[] = [];
 let isKleinunternehmer = false;
 let editingExpenseId: number | null = null;
+let editingIncomeId: number | null = null;
 /** Dokument, das nach dem Anlegen der Ausgabe automatisch verknüpft wird
  *  (Übernahme einer empfangenen E-Rechnung als Ausgabe). */
 let pendingExpenseDocId: number | null = null;
@@ -847,6 +942,13 @@ function renderInvoiceDetail(det: InvoiceDetail): void {
       ? (det.discount ? `<span class="adj-pill adj-pill-discount">Rechnungs-Rabatt: −${adjText(det.discount)}</span> ` : "") +
         `Netto ${eur(det.net_total_cents ?? 0)} · USt ${eur(det.tax_total_cents ?? 0)} · <strong>Brutto ${eur(det.gross_total_cents)}</strong>`
       : "";
+  el("#invoice-detail-installments").innerHTML =
+    det.installments.length > 0
+      ? `<strong>Ratenplan:</strong> ` +
+        det.installments
+          .map((r) => `${r.seq}. Rate ${fmtDate(r.due_date)} — ${eur(r.amount_cents)}`)
+          .join(" · ")
+      : "";
   const actionButtons: string[] = [];
   if (det.has_pdf) {
     actionButtons.push(
@@ -910,6 +1012,11 @@ function addItemRow(prefill?: InvoiceItemDetail): void {
   recomputeTotals();
 }
 
+/* DESIGN: Zu-/Abschlag sitzt in der Beschreibungs-Zelle unter dem Positionstext,
+   nicht als eigene Tabellenspalte – sonst wird die Positionstabelle zu breit und
+   der Normalfall (kein Rabatt) optisch bestraft. Jede Angabe ist ein eigener
+   "Chip" mit Badge links (Rabatt/Aufpreis) und farbiger Kante: grün = Nachlass,
+   gelb = Aufschlag. Leerer Zustand bleibt unauffällig. */
 /** Kompakte Zu-/Abschlag-Eingabe (Typ %/€ + Wert + Grund) für eine Position. */
 function adjInputs(cls: string, label: string, modifierClass: string, a?: LineAdjustment | null): string {
   const val = a ? String(a.value / 100) : "";
@@ -956,6 +1063,10 @@ function adjText(a: LineAdjustment): string {
   return a.reason ? `${v} (${escapeHtml(a.reason)})` : v;
 }
 
+/* DESIGN: Im festgeschriebenen Beleg werden Zu-/Abschläge als Pills unter der
+   Positionsbeschreibung gezeigt – nicht mehr als Eingabe, sondern als Fakt.
+   Vorzeichen (− / +) und Farbe (grün/gelb) machen die Richtung sofort lesbar,
+   ohne dass eine zusätzliche Spalte nötig wird. */
 /** Zu-/Abschlag-Zeile für die (festgeschriebene) Detailansicht, oder leer. */
 function adjDetail(a: LineAdjustment | null, label: string, type: "discount" | "surcharge" = "discount"): string {
   if (!a) return "";
@@ -982,6 +1093,10 @@ function readInvoiceLines(): InvoiceLineInput[] {
   return lines;
 }
 
+/* DESIGN: Live-Summen als eine einzige, mit "·" getrennte Zeile unter den Karten –
+   bewusst keine zweite Summen-Tabelle im Editor. Ein Rechnungs-Rabatt schiebt
+   zusätzlich "Zwischensumme" und "Rabatt −X" davor, damit der Weg zum Brutto
+   nachvollziehbar bleibt; Brutto ist als einziger Wert fett. */
 function recomputeTotals(): void {
   const li: LineInput[] = readInvoiceLines().map((l) => ({
     quantityMilli: l.quantity_milli,
@@ -1001,6 +1116,66 @@ function recomputeTotals(): void {
     `<strong>Brutto ${eur(t.grossTotalCents)}</strong>`,
   );
   el("#inv-totals").innerHTML = parts.join(" · ");
+  updateInstallmentHint(t.grossTotalCents);
+}
+
+/** Aktuelles Brutto aus dem Editor-Zustand (für den Ratenplan-Abgleich). */
+function currentGrossCents(): number {
+  const li: LineInput[] = readInvoiceLines().map((l) => ({
+    quantityMilli: l.quantity_milli,
+    unitPriceNetCents: l.unit_price_net_cents,
+    taxRateBp: l.tax_rate_bp,
+    discount: l.discount,
+    surcharge: l.surcharge,
+  }));
+  return computeInvoiceTotals(li, isKleinunternehmer, readInvoiceDiscount()).grossTotalCents;
+}
+
+/* DESIGN: Eine Ratenzeile ist bewusst minimal (Datum, Betrag, Entfernen) – die
+   Ratennummer ergibt sich aus der Reihenfolge und wird nicht eingegeben. Neue
+   Zeilen erscheinen leer statt vorbefüllt, damit nichts versehentlich gespeichert
+   wird; der Summen-Hinweis unter der Liste übernimmt die Rückmeldung. */
+function addInstallmentRow(prefill?: { due_date: string; amount_cents: number }): void {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input class="inst-due" type="date" value="${prefill?.due_date ?? ""}" /></td>
+    <td><input class="inst-amount" type="number" step="0.01" min="0" placeholder="Betrag (€)" value="${
+      prefill ? (prefill.amount_cents / 100).toFixed(2) : ""
+    }" /></td>
+    <td><button type="button" class="link inst-remove" title="Rate entfernen">✕</button></td>`;
+  el("#inst-rows").appendChild(tr);
+  updateInstallmentHint();
+}
+
+function readInstallments(): InstallmentInput[] {
+  const out: InstallmentInput[] = [];
+  document.querySelectorAll<HTMLTableRowElement>("#inst-rows tr").forEach((row) => {
+    const due = row.querySelector<HTMLInputElement>(".inst-due")!.value;
+    const amount = toCents(row.querySelector<HTMLInputElement>(".inst-amount")!.value);
+    if (!due || amount <= 0) return;
+    out.push({ due_date: due, amount_cents: amount });
+  });
+  return out;
+}
+
+/** Zeigt, ob die Ratensumme dem Bruttobetrag entspricht (Soll-Abgleich). */
+function updateInstallmentHint(gross = currentGrossCents()): void {
+  const hint = el("#inst-sum-hint");
+  const inst = readInstallments();
+  if (inst.length === 0) {
+    hint.textContent = "";
+    hint.className = "muted";
+    return;
+  }
+  const sum = inst.reduce((a, r) => a + r.amount_cents, 0);
+  const diff = gross - sum;
+  if (diff === 0) {
+    hint.textContent = `Summe ${eur(sum)} = Brutto ✓`;
+    hint.className = "ok";
+  } else {
+    hint.textContent = `Summe ${eur(sum)} · Brutto ${eur(gross)} · Differenz ${eur(diff)}`;
+    hint.className = "muted";
+  }
 }
 
 function closeInvoiceEditor(): void {
@@ -1058,6 +1233,9 @@ async function openInvoiceEditor(
   hideInvoicePreview();
   if (draft && draft.items.length > 0) draft.items.forEach((it) => addItemRow(it));
   else addItemRow();
+  el("#inst-rows").innerHTML = "";
+  (draft?.installments ?? []).forEach((r) => addInstallmentRow(r));
+  updateInstallmentHint();
   el("#invoice-editor").classList.remove("hidden");
 }
 
@@ -1071,6 +1249,7 @@ function collectDraft(): DraftInvoiceInput {
     payment_terms: el<HTMLInputElement>("#inv-terms").value.trim() || null,
     order_id: Number(el<HTMLSelectElement>("#inv-order").value) || null,
     discount: readInvoiceDiscount(),
+    installments: readInstallments(),
     lines,
   };
 }
@@ -1116,6 +1295,7 @@ function collectDraftLenient(): DraftInvoiceInput {
     payment_terms: el<HTMLInputElement>("#inv-terms").value.trim() || null,
     order_id: Number(el<HTMLSelectElement>("#inv-order").value) || null,
     discount: readInvoiceDiscount(),
+    installments: readInstallments(),
     lines: readInvoiceLines(),
   };
 }
@@ -1198,9 +1378,110 @@ async function renderEuer(): Promise<void> {
   await renderEuerForSelectedYear();
 }
 
+/* DESIGN: Einnahmen-Liste bewusst identisch zur Ausgaben-Liste aufgebaut (gleiche
+   Tabelle, gleiche Spaltenlogik) – beide sind EÜR-Bewegungen und sollen als Paar
+   lesbar sein. Die Rechnungsspalte zeigt den optionalen Bezug, z. B. die gemahnte
+   Rechnung, damit eine Mahngebühr zuordenbar bleibt. */
+function renderIncomeRows(rows: OtherIncomeListItem[], year: number): void {
+  el("#income-list").innerHTML =
+    rows.length === 0
+      ? `<tr><td colspan="7" class="muted" style="text-align:center;padding:14px;">Keine sonstigen Einnahmen für ${year}.</td></tr>`
+      : rows
+          .map(
+            (r) => `<tr>
+              <td class="nowrap">${fmtDate(r.income_date)}</td>
+              <td>${escapeHtml(r.description)}</td>
+              <td>${escapeHtml(r.category_name ?? "—")}</td>
+              <td>${escapeHtml(r.invoice_number ?? "—")}</td>
+              <td class="num">${eur(r.net_cents)}</td>
+              <td class="num">${eur(r.gross_cents)}</td>
+              <td><button class="link" data-edit-income="${r.id}">Bearbeiten</button></td>
+            </tr>`,
+          )
+          .join("");
+}
+
+async function openIncomeForm(detail: OtherIncomeDetail | null): Promise<void> {
+  const [cats, rates, invoices] = await Promise.all([
+    api.listIncomeCategories(),
+    api.listTaxRates(),
+    api.listInvoices(),
+  ]);
+  editingIncomeId = detail?.id ?? null;
+  const form = el<HTMLFormElement>("#income-form");
+  const field = (n: string): HTMLInputElement | HTMLSelectElement =>
+    form.elements.namedItem(n) as HTMLInputElement | HTMLSelectElement;
+
+  // Standard ist "Sonstige Betriebseinnahmen" + 0 % USt – der Mahngebühren-Fall.
+  (field("category_id") as HTMLSelectElement).innerHTML = cats
+    .map(
+      (c) =>
+        `<option value="${c.id}" ${
+          detail?.category_id === c.id || (!detail && c.code === "INC_OTHER") ? "selected" : ""
+        }>${escapeHtml(c.name)}</option>`,
+    )
+    .join("");
+  (field("tax") as HTMLSelectElement).innerHTML = rates
+    .map(
+      (r) =>
+        `<option value="${r.rate_bp}" ${
+          (detail?.tax_rate_bp ?? 0) === r.rate_bp ? "selected" : ""
+        }>${escapeHtml(r.name)}</option>`,
+    )
+    .join("");
+  (field("invoice_id") as HTMLSelectElement).innerHTML =
+    `<option value="">— kein Bezug —</option>` +
+    invoices
+      .filter((i) => i.invoice_number)
+      .map(
+        (i) =>
+          `<option value="${i.id}" ${detail?.invoice_id === i.id ? "selected" : ""}>${escapeHtml(
+            i.invoice_number ?? "",
+          )}${i.customer_name ? ` · ${escapeHtml(i.customer_name)}` : ""}</option>`,
+      )
+      .join("");
+
+  (field("income_date") as HTMLInputElement).value = detail?.income_date ?? today();
+  (field("description") as HTMLInputElement).value = detail?.description ?? "";
+  (field("gross") as HTMLInputElement).value = detail ? (detail.gross_cents / 100).toFixed(2) : "0";
+  (field("note") as HTMLInputElement).value = detail?.note ?? "";
+  el("#income-form-title").textContent = editingIncomeId ? "Einnahme bearbeiten" : "Neue Einnahme";
+  el("#income-error").textContent = "";
+  form.classList.remove("hidden");
+}
+
+async function submitIncome(ev: Event): Promise<void> {
+  ev.preventDefault();
+  const form = el<HTMLFormElement>("#income-form");
+  const value = (n: string): string =>
+    (form.elements.namedItem(n) as HTMLInputElement | HTMLSelectElement).value;
+  const input: OtherIncomeInput = {
+    income_date: value("income_date"),
+    description: value("description"),
+    category_id: Number(value("category_id")),
+    gross_cents: toCents(value("gross")),
+    tax_rate_bp: Number(value("tax")),
+    invoice_id: Number(value("invoice_id")) || null,
+    note: value("note").trim() || null,
+  };
+  try {
+    if (editingIncomeId) await api.updateOtherIncome(editingIncomeId, input);
+    else await api.createOtherIncome(input);
+    form.classList.add("hidden");
+    await renderEuerForSelectedYear();
+  } catch (err) {
+    el("#income-error").textContent = msg(err);
+  }
+}
+
 async function renderEuerForSelectedYear(): Promise<void> {
   const year = Number(el<HTMLSelectElement>("#euer-year").value);
-  const [report, expenses] = await Promise.all([api.euerReport(year), api.listExpenses(year)]);
+  const [report, expenses, otherIncome] = await Promise.all([
+    api.euerReport(year),
+    api.listExpenses(year),
+    api.listOtherIncome(year),
+  ]);
+  renderIncomeRows(otherIncome, year);
 
   const lines: string[] = [
     `<div class="euer-line"><span>Betriebseinnahmen (netto)</span><strong>${eur(report.income_net_cents)}</strong></div>`,
@@ -1836,6 +2117,32 @@ el("#issue-invoice").addEventListener("click", () => void issueNow());
 el("#preview-invoice").addEventListener("click", () => void toggleDraftPreview());
 el("#inv-items").addEventListener("input", recomputeTotals);
 el("#invoice-discount").addEventListener("input", recomputeTotals);
+el("#add-installment").addEventListener("click", () => addInstallmentRow());
+el("#invoice-installments").addEventListener("input", () => updateInstallmentHint());
+el("#inst-rows").addEventListener("click", (ev) => {
+  const remove = (ev.target as HTMLElement).closest(".inst-remove");
+  if (!remove) return;
+  remove.closest("tr")?.remove();
+  updateInstallmentHint();
+});
+el("#dunning-list").addEventListener("click", async (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLElement>("[data-dun]");
+  if (!btn) return;
+  const id = Number(btn.dataset.id);
+  const level = Number(btn.dataset.dun);
+  const fee = level >= 2 ? toCents(el<HTMLInputElement>("#dunning-fee").value) : 0;
+  el("#dunning-msg").textContent = "Erzeuge Dokument…";
+  try {
+    const res = await api.exportDunning(id, level, fee);
+    el("#dunning-msg").textContent = res.canceled
+      ? ""
+      : res.ok
+        ? `Gespeichert: ${res.path} · automatisch im Dokumentenspeicher abgelegt und mit der Rechnung verknüpft.`
+        : "Export fehlgeschlagen.";
+  } catch (err) {
+    el("#dunning-msg").textContent = msg(err);
+  }
+});
 el("#inv-items").addEventListener("click", (ev) => {
   const remove = (ev.target as HTMLElement).closest(".li-remove");
   if (!remove) return;
@@ -1974,6 +2281,16 @@ el("#new-expense").addEventListener("click", () => void openExpenseForm(null));
 el("#cancel-expense").addEventListener("click", () => {
   pendingExpenseDocId = null;
   el("#expense-form").classList.add("hidden");
+});
+el("#new-income").addEventListener("click", () => void openIncomeForm(null));
+el("#cancel-income").addEventListener("click", () => el("#income-form").classList.add("hidden"));
+el("#income-form").addEventListener("submit", (ev) => void submitIncome(ev));
+el("#income-list").addEventListener("click", (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLElement>("[data-edit-income]");
+  if (!btn) return;
+  void api.getOtherIncome(Number(btn.dataset.editIncome)).then((d) => {
+    if (d) void openIncomeForm(d);
+  });
 });
 el("#expense-form").addEventListener("submit", (ev) => void submitExpense(ev));
 el("#expenses-list").addEventListener("click", async (ev) => {

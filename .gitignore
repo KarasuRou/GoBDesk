@@ -22,6 +22,7 @@ out
 
 # IDE / OS
 .claude
+CLAUDE.md
 .vscode/
 .idea/
 .DS_Store

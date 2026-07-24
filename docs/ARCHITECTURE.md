@@ -50,6 +50,9 @@ Daten und liefert PDF/XML bzw. Text zurück – er fasst weder `audit_log` noch
 | `0006_storno` | Storno-Verfahren: `invoices.cancels_invoice_id`, negative Storno-Mengen (`invoice_items`-CHECK), präzisierte Sperr-Trigger (einziger erlaubter Übergang issued → cancelled) |
 | `0007_einvoice_inbound` | `documents.einvoice_json` – gecachte Kerndaten empfangener E-Rechnungen (ZUGFeRD/XRechnung, CII + UBL) |
 | `0008_address_snapshot_verfdok` | `invoices.buyer_address_snapshot` (Rechnungsanschrift eingefroren, Teil des Hash v4) + Trigger-Neubau; Tabelle `verfdok_texts` (organisatorische Angaben für den Verfahrensdok-Generator) |
+| `0009_line_and_invoice_discounts` | Positions-Rabatt/-Aufpreis (`invoice_items`: Typ %/€, Wert, Grund) + Rechnungs-Rabatt (`invoices`); `trg_invoices_block_update`-Neubau (Rabatt in der Storno-Whitelist), Teil des Hash v5 |
+| `0010_invoice_installments` | `invoice_installments` (Soll-Zahlungsplan/Ratenplan: Fälligkeit + Betrag) + Sperr-Trigger (nach Festschreibung unveränderbar). Reine Soll-Daten – der Ist-Zufluss bleibt in `payments` (EÜR) |
+| `0011_other_income_and_dunning` | `other_income` (sonstige Betriebseinnahmen außerhalb einer Rechnung, z. B. **Mahngebühren** – Zufluss, i. d. R. **ohne USt**); `dunning_notices` (erzeugte Mahnstufe je Rechnung, Grundlage der Eskalation) |
 
 Kernkonventionen: **Geld = Integer-Cent, Steuersatz = Basispunkte (1900 = 19 %),
 Menge = Milli**; Datums-/Zeitwerte als ISO-8601-Text. `STRICT`-Tabellen erzwingen
@@ -67,9 +70,10 @@ die Typdisziplin.
   reproduzierbar), `order_number_snapshot`.
 - **`content_hash`** = SHA-256 einer kanonischen Serialisierung (`invoiceContentHash`)
   aus Nummer, Datum, Kunde/Käufername, Netto/USt/Brutto, Steuermodus,
-  Auftragsnummer, Storno-Referenz **und Käuferanschrift**. `hash_version`
-  markiert das Format (1 = Basis, 2 = + Auftragsnummer, 3 = + Storno-Referenz,
-  4 = + Käuferanschrift) und hält Altbelege ohne Falsch-Alarm prüfbar.
+  Auftragsnummer, Storno-Referenz, Käuferanschrift **und Rechnungs-Rabatt**.
+  `hash_version` markiert das Format (1 = Basis, 2 = + Auftragsnummer,
+  3 = + Storno-Referenz, 4 = + Käuferanschrift, 5 = + Rechnungs-Rabatt) und hält
+  Altbelege ohne Falsch-Alarm prüfbar.
 - **Sperr-Trigger:** UPDATE/DELETE auf festgeschriebenen und stornierten Rechnungen
   und deren Positionen sowie jedes UPDATE/DELETE auf `audit_log` werden per Trigger
   abgewiesen. Der einzige erlaubte Übergang ist issued → cancelled, bei dem
@@ -98,10 +102,11 @@ Sieben unabhängige Prüfungen, als strukturierter Bericht dargestellt:
    Soll-SHA-256 geprüft; trennt Datenverlust (Datei fehlt), Manipulation
    (Hash weicht ab) und „noch kein PDF erzeugt".
 4. **Schreibschutz-Trigger** – Vorhandensein der GoBD-Sperr-Trigger im Schema.
-5. **Nebenaufzeichnungen** – Zahlungen und Ausgaben gegen die manipulationssicheren
+5. **Nebenaufzeichnungen** – Zahlungen, Ausgaben **und sonstige Betriebseinnahmen**
+   (`other_income`, z. B. Mahngebühren) gegen die manipulationssicheren
    Journal-Snapshots abgeglichen (erkennt INSERT/UPDATE/DELETE an der App vorbei;
-   dafür journalisieren `addPayment`/`createExpense`/`updateExpense` vollständige
-   Snapshots inkl. Vorzustand).
+   dafür journalisieren `addPayment`/`createExpense`/`updateExpense`/
+   `createOtherIncome`/`updateOtherIncome` vollständige Snapshots inkl. Vorzustand).
 6. **DMS-Dokumente** – jede abgelegte Datei byte-genau gegen die beim (journalisierten)
    Import gespeicherte `content_sha256` geprüft.
 7. **Zeitgerechtheit** (Hinweis) – offene Rechnungsentwürfe, insbesondere älter
@@ -191,13 +196,21 @@ Request (Hauptprozess → Python), Command `render`:
     "seller": { "…": "aus company_settings" },
     "buyer":  { "…": "aus customers" },
     "lines":  [ { "description": "Beratung", "quantity_milli": 2000,
-                  "unit": "HUR", "unit_price_net_cents": 9000, "tax_rate_bp": 1900 } ],
+                  "unit": "HUR", "unit_price_net_cents": 9000, "tax_rate_bp": 1900,
+                  "discount": null,
+                  "surcharge": { "type": "percent", "value": 3000, "reason": "Animation" } } ],
+    "discount": { "type": "percent", "value": 1000, "reason": "Aktionsrabatt" },
     "payment_terms": "Zahlbar innerhalb von 14 Tagen.",
     "order_number": "2026-A0001",
     "cancels_number": null
   }
 }
 ```
+
+Zu-/Abschläge sind optional (`null` = keiner): je Position ein `discount` (Rabatt) und/oder
+`surcharge` (Aufpreis), auf Rechnungsebene ein `discount`. `type` ist `"percent"` (Wert in
+Basispunkten, 3000 = 30 %) oder `"amount"` (Wert in Cent). Der Sidecar bildet sie als echte
+EN-16931-Allowances/Charges ab (Positionsebene BG-27/BG-28, Rechnungsebene BG-20 je Steuersatz).
 
 Bei Stornorechnungen trägt `cancels_number` die Nummer des stornierten Originals –
 sie erscheint als **BT-25** im XML und als „Storno zu Rechnung" im PDF
@@ -247,6 +260,12 @@ Variablen (Entwicklung) läuft alles über `py -3.11 -m einvoice` und System-Too
 - **Aufträge** als optionale Klammer über Rechnungen/Dokumente/Ausgaben; die
   Auftragsnummer erscheint im PDF-Kopf, als **BT-14** im XML und ist im
   `content_hash` eingefroren.
+- **Rabatte & Aufpreise** als echte **EN-16931-Allowances/Charges** (Positionsebene
+  BG-27/BG-28, Rechnungsebene BG-20 je Steuersatz), prozentual (Basispunkte) oder
+  absolut (Cent) – sie fließen in die **Steuerbasis je Satz** ein, nicht in den
+  Einzelpreis „versteckt". Der Rechnungs-Rabatt ist Teil des `content_hash` (v5); ein
+  Rechnungs-Rabatt bei gemischten Sätzen wird anteilig je Satz aufgeteilt (Rundungsrest
+  auf den umsatzstärksten Satz → Summe exakt).
 
 ## GoBD – ehrliche Grenzen
 

@@ -9,6 +9,8 @@ import type Database from "better-sqlite3";
 
 import { listJournal, listJournalForInvoice, verifyAuditChain, verifyGobd } from "../core/gobd.js";
 import { computeInvoiceTotals } from "../core/tax.js";
+import { listOverdueInvoices } from "./dunning.js";
+import { createOtherIncome } from "./income.js";
 import { initDatabase } from "./db.js";
 import { createExpense, euerReport, getExpense, listEuerYears, updateExpense } from "./expenses.js";
 import {
@@ -211,6 +213,10 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       service_date: "2026-07-08",
       payment_terms: "Zahlbar in 14 Tagen.",
       discount: adjInvoiceDiscount,
+      installments: [
+        { due_date: "2026-08-15", amount_cents: 100000 },
+        { due_date: "2026-09-15", amount_cents: 82565 },
+      ],
       lines: adjLines,
     });
     const adjExpected = computeInvoiceTotals(
@@ -236,7 +242,8 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       adjDetail?.discount?.type === "percent" &&
       adjDetail?.discount?.value === 1000 &&
       adjDetail?.items[0]?.surcharge?.value === 3000 &&
-      adjDetail?.items[1]?.discount?.value === 5000;
+      adjDetail?.items[1]?.discount?.value === 5000 &&
+      adjDetail?.installments.length === 2;
     out.discounts = {
       ok: discountsOk,
       net: adjIssued.net_total_cents,
@@ -247,8 +254,15 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
         tax: adjExpected.taxTotalCents,
         gross: adjExpected.grossTotalCents,
       },
+      installments: adjDetail?.installments.length,
       valid: adjValidation.valid,
     };
+
+    // Mahnwesen: die ratenplan-bewusste Überfällig-Abfrage muss fehlerfrei laufen
+    // (Datumsabhängig, daher keine Aussage über die Anzahl).
+    const overdue = listOverdueInvoices(db);
+    const dunningOk = Array.isArray(overdue) && overdue.every((o) => o.due_now_cents > 0);
+    out.dunning = { ok: dunningOk, overdue: overdue.length };
 
     // PDF-Vorschau (Basis-Layout) liefert PDF-Bytes.
     const previewBytes = await previewDraftPdf(
@@ -300,6 +314,25 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
     updateExpense(db, expenseId, { ...before!, description: "Büromaterial (korrigiert)" });
     const editApplied = getExpense(db, expenseId)?.description === "Büromaterial (korrigiert)";
     const auditAfterEdit = verifyAuditChain(db) === null;
+
+    // Sonstige Betriebseinnahme (Mahngebühr): 0 % USt, Zufluss – muss exakt als
+    // Betriebseinnahme in der EÜR ankommen und journalisiert/prüfbar sein.
+    const incomeCatId = (
+      db.prepare("SELECT id FROM euer_categories WHERE code = 'INC_OTHER'").get() as { id: number }
+    ).id;
+    const euerIncomeBefore = euerReport(db, 2026).income_net_cents;
+    const otherIncomeId = createOtherIncome(db, {
+      income_date: "2026-05-20",
+      description: "Mahngebühr Rechnung 2026-0002",
+      category_id: incomeCatId,
+      gross_cents: 500,
+      tax_rate_bp: 0,
+      invoice_id: null,
+      note: null,
+    });
+    const euerIncomeDelta = euerReport(db, 2026).income_net_cents - euerIncomeBefore;
+    const otherIncomeOk = otherIncomeId > 0 && euerIncomeDelta === 500;
+    out.otherIncome = { ok: otherIncomeOk, id: otherIncomeId, euerDelta: euerIncomeDelta };
     out.expenseEdit = editApplied && auditAfterEdit;
     // Proportionaler Zufluss (§11 EStG): Rechnung (100 % netto, brutto 119 000)
     // in zwei gleichen Raten über zwei Jahre → je Jahr genau die Hälfte netto.
@@ -598,7 +631,7 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       verfdok.includes("Musterberatung Rouven") &&
       verfdok.includes("Journal-Hash-Kette") === false && // Fließtext, kein Debug-Dump
       verfdok.includes("## 3. Technische Systemdokumentation") &&
-      verfdok.includes("Migration 9") &&
+      verfdok.includes("Migration 11") &&
       verfdok.includes(smokeText) &&
       verfdokHtml.includes("<h2>3. Technische Systemdokumentation</h2>") &&
       verfdokHtml.includes(smokeText) &&
@@ -630,6 +663,8 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       gobd.sideRecords.mismatches.length === 0 &&
       gobd.sideRecords.payments > 0 &&
       gobd.sideRecords.expenses > 0 &&
+      gobd.sideRecords.otherIncome > 0 &&
+      gobd.sideRecords.otherIncomeOk === gobd.sideRecords.otherIncome &&
       gobd.documents.total > 0 &&
       gobd.documents.ok === gobd.documents.total;
     out.gobd = {
@@ -641,7 +676,7 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       mismatch: gobd.artifacts.hashMismatch.length,
       withoutPdf: gobd.artifacts.withoutPdf.length,
       triggers: `${gobd.triggers.present}/${gobd.triggers.expected}`,
-      sideRecords: `${gobd.sideRecords.paymentsOk}/${gobd.sideRecords.payments} Zahlungen, ${gobd.sideRecords.expensesOk}/${gobd.sideRecords.expenses} Ausgaben`,
+      sideRecords: `${gobd.sideRecords.paymentsOk}/${gobd.sideRecords.payments} Zahlungen, ${gobd.sideRecords.expensesOk}/${gobd.sideRecords.expenses} Ausgaben, ${gobd.sideRecords.otherIncomeOk}/${gobd.sideRecords.otherIncome} sonst. Einnahmen`,
       documents: `${gobd.documents.ok}/${gobd.documents.total}`,
       staleDrafts: gobd.timeliness.staleDrafts,
     };
@@ -685,6 +720,8 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
       pdfExists &&
       validateOk &&
       discountsOk &&
+      dunningOk &&
+      otherIncomeOk &&
       previewOk &&
       paymentOk &&
       filterOk &&

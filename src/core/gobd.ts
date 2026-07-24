@@ -468,6 +468,8 @@ const GOBD_TRIGGERS = [
   "trg_invoices_block_delete",
   "trg_invoice_items_block_update",
   "trg_invoice_items_block_delete",
+  "trg_invoice_installments_block_update",
+  "trg_invoice_installments_block_delete",
   "trg_audit_block_update",
   "trg_audit_block_delete",
 ] as const;
@@ -628,12 +630,13 @@ function verifyArtifacts(
 function verifySideRecords(db: Database.Database): GobdReport["sideRecords"] {
   const journal = db
     .prepare(
-      "SELECT entity_type, entity_id, action, payload_json FROM audit_log WHERE entity_type IN ('payment','expense') ORDER BY id",
+      "SELECT entity_type, entity_id, action, payload_json FROM audit_log WHERE entity_type IN ('payment','expense','income') ORDER BY id",
     )
     .all() as Array<{ entity_type: string; entity_id: number; action: string; payload_json: string }>;
 
   const expectedPayments = new Map<number, Record<string, unknown>>();
   const expectedExpenses = new Map<number, Record<string, unknown>>();
+  const expectedIncome = new Map<number, Record<string, unknown>>();
   for (const row of journal) {
     let p: Record<string, unknown> = {};
     try {
@@ -646,6 +649,8 @@ function verifySideRecords(db: Database.Database): GobdReport["sideRecords"] {
       else if (row.action === "DELETE") expectedPayments.delete(row.entity_id);
     } else if (row.entity_type === "expense") {
       if (row.action === "CREATE" || row.action === "UPDATE") expectedExpenses.set(row.entity_id, p);
+    } else if (row.entity_type === "income") {
+      if (row.action === "CREATE" || row.action === "UPDATE") expectedIncome.set(row.entity_id, p);
     }
   }
 
@@ -706,11 +711,45 @@ function verifySideRecords(db: Database.Database): GobdReport["sideRecords"] {
     mismatches.push({ kind: "expense", id, problem: "laut Journal vorhanden, aber gelöscht" });
   }
 
+  // Sonstige Betriebseinnahmen (z. B. Mahngebühren) sind ebenfalls EÜR-relevante
+  // Nebenaufzeichnungen und werden gegen ihre Journal-Snapshots abgeglichen.
+  const INCOME_FIELDS = [
+    "income_date",
+    "description",
+    "category_id",
+    "net_cents",
+    "tax_cents",
+    "gross_cents",
+    "tax_rate_bp",
+    "invoice_id",
+    "note",
+  ] as const;
+  const otherIncome = db
+    .prepare(`SELECT id, ${INCOME_FIELDS.join(", ")} FROM other_income ORDER BY id`)
+    .all() as Array<Record<string, unknown> & { id: number }>;
+  let otherIncomeOk = 0;
+  for (const r of otherIncome) {
+    const exp = expectedIncome.get(r.id);
+    if (!exp) {
+      mismatches.push({ kind: "income", id: r.id, problem: "nicht im Journal erfasst" });
+    } else if (INCOME_FIELDS.some((f) => (exp[f] ?? null) !== (r[f] ?? null))) {
+      mismatches.push({ kind: "income", id: r.id, problem: "weicht vom Journal-Snapshot ab" });
+    } else {
+      otherIncomeOk += 1;
+    }
+    expectedIncome.delete(r.id);
+  }
+  for (const id of expectedIncome.keys()) {
+    mismatches.push({ kind: "income", id, problem: "laut Journal vorhanden, aber gelöscht" });
+  }
+
   return {
     payments: payments.length,
     paymentsOk,
     expenses: expenses.length,
     expensesOk,
+    otherIncome: otherIncome.length,
+    otherIncomeOk,
     mismatches,
   };
 }

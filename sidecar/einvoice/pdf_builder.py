@@ -97,6 +97,10 @@ def build_pdf(inv: Invoice, path: str) -> str:
             str(i), line.description, _qty(line.quantity_milli), line.unit,
             _eur(line.unit_price_net_cents), f"{rate_bp // 100} %", _eur(line.net_cents),
         ])
+        # DESIGN: Zu-/Abschläge erscheinen als kleine graue Fußnote unter der
+        # Positionszeile, nicht als eigene Spalte. So bleibt die Betragsspalte
+        # eindeutig (sie zeigt immer das Positions-Netto NACH Zu-/Abschlag) und
+        # der Leser kann trotzdem nachvollziehen, wie der Wert zustande kommt.
         notes = []
         if line.discount_cents:
             r = line.discount.reason if line.discount and line.discount.reason else "Rabatt"
@@ -120,6 +124,10 @@ def build_pdf(inv: Invoice, path: str) -> str:
     story.append(items)
     story.append(Spacer(1, 4 * mm))
 
+    # DESIGN: Der Summenblock zeigt den Rechenweg nur, wenn es etwas zu zeigen
+    # gibt: ohne Rechnungs-Rabatt bleibt es bei Netto/USt/Gesamt, mit Rabatt
+    # werden "Zwischensumme netto" und der Abzug davorgesetzt. Gesamtbetrag ist
+    # die einzige fette Zeile mit Trennlinie darüber.
     totals = []
     if inv.invoice_discount_cents > 0:
         r = inv.discount.reason if inv.discount and inv.discount.reason else "Rabatt"
@@ -141,6 +149,29 @@ def build_pdf(inv: Invoice, path: str) -> str:
     ]))
     story.append(totals_tbl)
     story.append(Spacer(1, 6 * mm))
+
+    # DESIGN: Der Zahlungsplan steht als eigene, linksbündige Tabelle unter dem
+    # Summenblock – klar getrennt, weil er eine Zahlungsvereinbarung ist und
+    # keine Betragsposition. Schmale Spalten, gleiche Kopfzeilen-Optik wie die
+    # Positionstabelle, damit der Beleg als ein Dokument wirkt.
+    if inv.installments:
+        plan_rows = [["Rate", "Fällig am", "Betrag"]]
+        for r in inv.installments:
+            plan_rows.append([f"{r.seq}.", r.due_date.strftime("%d.%m.%Y"), _eur(r.amount_cents)])
+        plan_tbl = Table(plan_rows, colWidths=[18 * mm, 35 * mm, 30 * mm], hAlign="LEFT")
+        plan_tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), FONT),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ececec")),
+            ("ALIGN", (2, 0), (2, -1), "RIGHT"),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.4, colors.black),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        plan_head = ParagraphStyle("plan", parent=normal, fontName=FONT_BOLD, fontSize=10, spaceAfter=3)
+        story.append(Paragraph("Zahlungsplan (Ratenzahlung)", plan_head))
+        story.append(plan_tbl)
+        story.append(Spacer(1, 5 * mm))
 
     if inv.is_kleinunternehmer:
         story.append(Paragraph(KLEINUNTERNEHMER_HINWEIS, normal))

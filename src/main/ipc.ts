@@ -53,6 +53,7 @@ import type {
   DocumentUpdateInput,
   DraftInvoiceInput,
   ExpenseInput,
+  OtherIncomeInput,
   InvoiceFilter,
   OrderFilter,
   OrderInput,
@@ -88,6 +89,14 @@ import {
   saveVerfdokTexts,
 } from "./verfdok.js";
 import { validateInvoice } from "./sidecar.js";
+import { listOverdueInvoices, recordDunning, renderDunningHtml } from "./dunning.js";
+import {
+  createOtherIncome,
+  getOtherIncome,
+  listIncomeCategories,
+  listOtherIncome,
+  updateOtherIncome,
+} from "./income.js";
 import {
   createCustomer,
   getCustomer,
@@ -160,6 +169,52 @@ export function registerIpc(db: Database.Database): void {
   });
   ipcMain.handle("invoices:get", (_e, id: number) => getInvoice(db, id));
   ipcMain.handle("invoices:markPaid", (_e, id: number) => markInvoicePaid(db, id));
+
+  ipcMain.handle("dunning:list", () => listOverdueInvoices(db));
+  ipcMain.handle(
+    "dunning:export",
+    async (_e, invoiceId: number, level: number, feeCents: number) => {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+      const { html, number, customerId, orderId, title } = renderDunningHtml(
+        db,
+        invoiceId,
+        level,
+        feeCents || 0,
+      );
+      const stamp = new Date().toISOString().slice(0, 10);
+      const label = level >= 2 ? "Mahnung" : "Zahlungserinnerung";
+      const res = await dialog.showSaveDialog(win!, {
+        title: `${label} exportieren`,
+        defaultPath: `${label}-${number}-${stamp}.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+      writeFileSync(res.filePath, await htmlToPdf(html));
+
+      // Automatische Ablage: Mahnschreiben ins DMS aufnehmen, mit der Rechnung
+      // verknüpfen und – falls vorhanden – dem Auftrag zuordnen. Import und
+      // Metadaten-Änderung werden dabei ohnehin journalisiert.
+      const doc = await importDocumentWithOcr(db, res.filePath, paths.sidecarDir);
+      const typeId =
+        (
+          db.prepare("SELECT id FROM document_types WHERE name = 'Mahnung'").get() as
+            | { id: number }
+            | undefined
+        )?.id ?? null;
+      updateDocument(db, doc.id, {
+        title,
+        document_type_id: typeId,
+        customer_id: customerId,
+        order_id: orderId,
+        doc_date: stamp,
+        tags: [],
+      });
+      linkDocument(db, doc.id, "invoice", invoiceId);
+      // Stufe festhalten – daraus ergibt sich die nächste Eskalationsstufe.
+      recordDunning(db, invoiceId, level, feeCents || 0, doc.id);
+      return { ok: true, path: res.filePath, documentId: doc.id };
+    },
+  );
   ipcMain.handle(
     "payments:add",
     (_e, invoiceId: number, paidAt: string, amountCents: number, note: string | null) =>
@@ -180,6 +235,13 @@ export function registerIpc(db: Database.Database): void {
     updateExpense(db, id, input),
   );
   ipcMain.handle("expenses:list", (_e, year: number) => listExpenses(db, year));
+  ipcMain.handle("income:categories", () => listIncomeCategories(db));
+  ipcMain.handle("income:create", (_e, input: OtherIncomeInput) => createOtherIncome(db, input));
+  ipcMain.handle("income:get", (_e, id: number) => getOtherIncome(db, id));
+  ipcMain.handle("income:update", (_e, id: number, input: OtherIncomeInput) =>
+    updateOtherIncome(db, id, input),
+  );
+  ipcMain.handle("income:list", (_e, year: number) => listOtherIncome(db, year));
   ipcMain.handle("euer:report", (_e, year: number) => euerReport(db, year));
   ipcMain.handle("euer:years", () => listEuerYears(db));
 

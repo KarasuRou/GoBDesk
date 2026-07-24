@@ -87,7 +87,9 @@ export interface GobdReport {
     paymentsOk: number;
     expenses: number;
     expensesOk: number;
-    mismatches: { kind: "payment" | "expense"; id: number; problem: string }[];
+    otherIncome: number;
+    otherIncomeOk: number;
+    mismatches: { kind: "payment" | "expense" | "income"; id: number; problem: string }[];
   };
   /** DMS-Dokumente byte-genau gegen die beim Import gespeicherte Prüfsumme geprüft. */
   documents: {
@@ -179,6 +181,17 @@ export interface InvoiceFilter {
   orderId?: number | null;
 }
 
+/** Eine geplante Rate eines Soll-Zahlungsplans (Ratenplan). Reine Vereinbarung –
+ *  kein Zufluss; die tatsächlichen Eingänge stehen in `payments` (EÜR). */
+export interface InstallmentInput {
+  due_date: string;
+  amount_cents: number;
+}
+
+export interface Installment extends InstallmentInput {
+  seq: number;
+}
+
 /** Erfassungsart eines Zu-/Abschlags: prozentual (Wert in bp) oder absolut (Cent). */
 export type AdjustmentType = "percent" | "amount";
 
@@ -237,6 +250,8 @@ export interface InvoiceDetail {
   gross_total_cents: number | null;
   has_pdf: number;
   items: InvoiceItemDetail[];
+  /** Soll-Zahlungsplan (Ratenplan), leer wenn keiner vereinbart. */
+  installments: Installment[];
   payments: PaymentItem[];
   paid_cents: number;
   remaining_cents: number;
@@ -263,6 +278,8 @@ export interface DraftInvoiceInput {
   order_id?: number | null;
   /** Rechnungsweiter Rabatt (EN 16931 BG-20). */
   discount?: LineAdjustment | null;
+  /** Optionaler Soll-Zahlungsplan (Ratenplan). */
+  installments?: InstallmentInput[];
   lines: InvoiceLineInput[];
 }
 
@@ -281,6 +298,36 @@ export interface CancelInvoiceResult {
   stornoNumber: string;
   originalNumber: string;
   pdf_path: string | null;
+}
+
+/** Eine überfällige, noch offene Rechnung (Mahnwesen). */
+export interface OverdueInvoice {
+  id: number;
+  invoice_number: string | null;
+  customer_name: string | null;
+  /** Fälligkeit der ältesten offenen, bereits fälligen Rate bzw. das Zahlungsziel. */
+  due_date: string;
+  days_overdue: number;
+  gross_cents: number;
+  paid_cents: number;
+  /** Offener Gesamtbetrag der Rechnung. */
+  open_cents: number;
+  /** Davon bereits fällig – bei Ratenplan nur die fälligen Raten. */
+  due_now_cents: number;
+  /** Anzahl Raten des Soll-Zahlungsplans (0 = kein Ratenplan). */
+  installment_count: number;
+  /** Höchste bereits erzeugte Mahnstufe (0 = noch keine). */
+  last_level: number;
+  /** Vorschlag für die nächste Stufe (1 = Erinnerung … 3 = 2. Mahnung). */
+  next_level: number;
+}
+
+export interface DunningResult {
+  ok: boolean;
+  canceled?: boolean;
+  path?: string;
+  /** Id des automatisch im DMS abgelegten und verknüpften Dokuments. */
+  documentId?: number;
 }
 
 export interface EuerCategory {
@@ -315,6 +362,37 @@ export interface ExpenseListItem {
   net_cents: number;
   gross_cents: number;
   deductible_permille: number;
+}
+
+/**
+ * Sonstige Betriebseinnahme außerhalb einer Rechnung – typischer Fall:
+ * **Mahngebühr/Verzugszinsen**. Diese sind Betriebseinnahmen bei Zufluss, aber
+ * **ohne USt** (echter Schadensersatz), deshalb `tax_rate_bp` in der Regel 0.
+ */
+export interface OtherIncomeInput {
+  income_date: string;
+  description: string;
+  category_id: number;
+  gross_cents: number;
+  tax_rate_bp: number;
+  /** Optionaler Bezug zur Rechnung (z. B. der gemahnten). */
+  invoice_id?: number | null;
+  note?: string | null;
+}
+
+export interface OtherIncomeDetail extends OtherIncomeInput {
+  id: number;
+}
+
+export interface OtherIncomeListItem {
+  id: number;
+  income_date: string;
+  description: string;
+  category_name: string | null;
+  net_cents: number;
+  tax_cents: number;
+  gross_cents: number;
+  invoice_number: string | null;
 }
 
 export interface EuerReport {
@@ -590,6 +668,8 @@ export interface GobdeskApi {
   validateInvoice(id: number): Promise<ValidationResult>;
   getInvoice(id: number): Promise<InvoiceDetail | null>;
   markInvoicePaid(id: number): Promise<void>;
+  listOverdueInvoices(): Promise<OverdueInvoice[]>;
+  exportDunning(invoiceId: number, level: number, feeCents: number): Promise<DunningResult>;
   addPayment(invoiceId: number, paidAt: string, amountCents: number, note: string | null): Promise<void>;
   deletePayment(paymentId: number): Promise<void>;
   openArtifact(invoiceId: number, kind: "pdf" | "xml"): Promise<void>;
@@ -598,6 +678,11 @@ export interface GobdeskApi {
   getExpense(id: number): Promise<ExpenseDetail | null>;
   updateExpense(id: number, input: ExpenseInput): Promise<void>;
   listExpenses(year: number): Promise<ExpenseListItem[]>;
+  listIncomeCategories(): Promise<EuerCategory[]>;
+  createOtherIncome(input: OtherIncomeInput): Promise<number>;
+  getOtherIncome(id: number): Promise<OtherIncomeDetail | null>;
+  updateOtherIncome(id: number, input: OtherIncomeInput): Promise<void>;
+  listOtherIncome(year: number): Promise<OtherIncomeListItem[]>;
   euerReport(year: number): Promise<EuerReport>;
   listEuerYears(): Promise<number[]>;
   runDemoInvoice(): Promise<DemoInvoiceResult>;

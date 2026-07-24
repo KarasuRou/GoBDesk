@@ -22,6 +22,9 @@ const api: GobdeskApi = {
   validateInvoice: (id) => ipcRenderer.invoke("invoices:validate", id),
   getInvoice: (id) => ipcRenderer.invoke("invoices:get", id),
   markInvoicePaid: (id) => ipcRenderer.invoke("invoices:markPaid", id),
+  listOverdueInvoices: () => ipcRenderer.invoke("dunning:list"),
+  exportDunning: (invoiceId, level, feeCents) =>
+    ipcRenderer.invoke("dunning:export", invoiceId, level, feeCents),
   addPayment: (invoiceId, paidAt, amountCents, note) =>
     ipcRenderer.invoke("payments:add", invoiceId, paidAt, amountCents, note),
   deletePayment: (paymentId) => ipcRenderer.invoke("payments:delete", paymentId),
@@ -31,6 +34,11 @@ const api: GobdeskApi = {
   getExpense: (id) => ipcRenderer.invoke("expenses:get", id),
   updateExpense: (id, input) => ipcRenderer.invoke("expenses:update", id, input),
   listExpenses: (year) => ipcRenderer.invoke("expenses:list", year),
+  listIncomeCategories: () => ipcRenderer.invoke("income:categories"),
+  createOtherIncome: (input) => ipcRenderer.invoke("income:create", input),
+  getOtherIncome: (id) => ipcRenderer.invoke("income:get", id),
+  updateOtherIncome: (id, input) => ipcRenderer.invoke("income:update", id, input),
+  listOtherIncome: (year) => ipcRenderer.invoke("income:list", year),
   euerReport: (year) => ipcRenderer.invoke("euer:report", year),
   listEuerYears: () => ipcRenderer.invoke("euer:years"),
   runDemoInvoice: () => ipcRenderer.invoke("invoices:runDemo"),

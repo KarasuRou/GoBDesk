@@ -9,6 +9,7 @@ import { fileDigest } from "./hash.js";
 import type {
   CancelInvoiceResult,
   DraftInvoiceInput,
+  Installment,
   InvoiceDetail,
   InvoiceFilter,
   InvoiceItemDetail,
@@ -38,6 +39,28 @@ function adjCols(
   a: LineAdjustment | null | undefined,
 ): [string | null, number | null, string | null] {
   return a ? [a.type, a.value, a.reason ?? null] : [null, null, null];
+}
+
+/** Schreibt den Soll-Zahlungsplan (Ratenplan) neu; Reihenfolge = seq 1..n. */
+function insertInstallments(
+  db: Database.Database,
+  invoiceId: number,
+  installments: { due_date: string; amount_cents: number }[] | undefined,
+): void {
+  if (!installments || installments.length === 0) return;
+  const stmt = db.prepare(
+    "INSERT INTO invoice_installments (invoice_id, seq, due_date, amount_cents) VALUES (?, ?, ?, ?)",
+  );
+  installments.forEach((r, i) => stmt.run(invoiceId, i + 1, r.due_date, r.amount_cents));
+}
+
+/** Lädt den Soll-Zahlungsplan einer Rechnung (leer = keiner). */
+function loadInstallments(db: Database.Database, invoiceId: number): Installment[] {
+  return db
+    .prepare(
+      "SELECT seq, due_date, amount_cents FROM invoice_installments WHERE invoice_id = ? ORDER BY seq",
+    )
+    .all(invoiceId) as Installment[];
 }
 
 export function listTaxRates(db: Database.Database): TaxRate[] {
@@ -187,6 +210,7 @@ export function getInvoice(db: Database.Database, id: number): InvoiceDetail | n
     ...headRest,
     discount: rowAdjustment(discount_type, discount_value, discount_reason),
     items,
+    installments: loadInstallments(db, id),
     payments,
     paid_cents: paid,
     remaining_cents: remaining,
@@ -280,6 +304,7 @@ export function createDraftInvoice(db: Database.Database, input: DraftInvoiceInp
         d[0], d[1], d[2], s[0], s[1], s[2],
       );
     });
+    insertInstallments(db, invId, data.installments);
     return invId;
   });
 
@@ -331,6 +356,8 @@ export function updateDraftInvoice(
         d[0], d[1], d[2], s[0], s[1], s[2],
       );
     });
+    db.prepare("DELETE FROM invoice_installments WHERE invoice_id = ?").run(id);
+    insertInstallments(db, id, input.installments);
   });
   run();
 }
@@ -403,6 +430,7 @@ function buildSidecarRequest(db: Database.Database, invoiceId: number, outputDir
         surcharge: rowAdjustment(r.surcharge_type, r.surcharge_value, r.surcharge_reason),
       })),
       discount: rowAdjustment(inv.discount_type, inv.discount_value, inv.discount_reason),
+      installments: loadInstallments(db, invoiceId),
       payment_terms: inv.notes ?? null,
       order_number: inv.order_number_snapshot ?? null,
       cancels_number: inv.cancels_number ?? null,
@@ -461,6 +489,7 @@ function buildPreviewRequest(
         : { name: "—", street: null, zip: null, city: null, country: "DE", vat_id: null, email: null },
       lines: input.lines,
       discount: input.discount ?? null,
+      installments: input.installments ?? [],
       payment_terms: input.payment_terms ?? null,
       order_number: orderNumber,
     },

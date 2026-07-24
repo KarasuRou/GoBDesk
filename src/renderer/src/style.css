@@ -1486,6 +1486,46 @@ button[id^="back-"]:hover {
   font-size: 12.5px !important;
 }
 
+/* DESIGN: Im Mahnwesen ist die laut Historie nächste Eskalationsstufe hervorgehoben
+   (fett + unterstrichen), ohne die anderen Stufen zu deaktivieren – Empfehlung
+   statt Zwang. */
+.link.suggested {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* DESIGN: Ratenplan (Soll-Zahlungsplan) – kompakte Zeilen ohne Tabellengitter,
+   damit die Karte leicht bleibt. Eingabefelder sind niedriger (32px) als im
+   Hauptformular, weil es sich um eine untergeordnete Zusatzangabe handelt.
+   Fußzeile: "+ Rate" links, Summen-Hinweis direkt daneben (nicht rechtsbündig),
+   damit der Bezug zur Aktion sichtbar bleibt. */
+.installments-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0;
+}
+.installments-table td {
+  padding: 3px 6px 3px 0;
+}
+.installments-table input[type="date"],
+.installments-table input[type="number"] {
+  height: 32px !important;
+  font-size: 12.5px !important;
+  padding: 4px 8px !important;
+}
+.installments-table input[type="number"] {
+  width: 120px !important;
+}
+.installments-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+#inst-sum-hint {
+  font-size: 12px;
+}
+
 /* Detail view pills */
 .adj-pill {
   display: inline-flex;

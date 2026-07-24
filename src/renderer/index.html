@@ -32,6 +32,13 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M21 9H3"/><path d="M21 15H3"/><path d="M12 3v18"/></svg>
           Rechnungen
         </button>
+        <!-- DESIGN: "Mahnungen" steht bewusst direkt unter "Rechnungen" – es ist deren
+             Folgeschritt. Glocken-Icon (Erinnerung), gleiche Nav-Optik wie alle anderen
+             Einträge, kein Badge/Zähler: die Liste soll nicht drängen. -->
+        <button class="nav-item" data-view="dunning">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+          Mahnungen
+        </button>
         <button class="nav-item" data-view="documents">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
           Dokumente
@@ -239,6 +246,10 @@
                 </table>
                 <button type="button" id="add-item" class="secondary small">+ Position</button>
 
+                <!-- DESIGN: Rabatt- und Ratenplan-Karte sind zwei gleich gewichtete
+                     "Zusatz-Karten" unter den Positionen: abgesetzter Block (var(--bg)) mit
+                     Icon-Header, damit sie klar als optionale Ergänzung lesbar sind und die
+                     Positionstabelle nicht überladen. Beide teilen Rahmen, Radius und Hover. -->
                 <div id="invoice-discount" class="invoice-discount-card">
                   <div class="discount-card-header">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="discount-icon"><path d="m19 5-7 7-7-7"/><path d="m5 19 7-7 7 7"/></svg>
@@ -254,6 +265,24 @@
                       <input id="inv-disc-val" type="number" step="0.01" min="0" placeholder="Wert" />
                       <input id="inv-disc-reason" type="text" placeholder="Grund (z.B. Skonto, Treuerabatt)" />
                     </div>
+                  </div>
+                </div>
+
+                <!-- DESIGN: Ratenplan-Karte spiegelt die Rabatt-Karte (gleicher Rahmen/Header).
+                     Inhalt ist eine schlanke Zeilenliste aus Datum + Betrag + Entfernen-Kreuz.
+                     Der Summen-Hinweis rechts neben "+ Rate" wird grün (.ok), sobald die
+                     Ratensumme exakt dem Bruttobetrag entspricht – sonst dezent grau. -->
+                <div id="invoice-installments" class="invoice-discount-card">
+                  <div class="discount-card-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="discount-icon"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+                    <span>Ratenplan (optional) – Soll-Zahlungsplan, kein Zahlungseingang</span>
+                  </div>
+                  <table class="items installments-table">
+                    <tbody id="inst-rows"></tbody>
+                  </table>
+                  <div class="installments-foot">
+                    <button type="button" id="add-installment" class="secondary small">+ Rate</button>
+                    <span id="inst-sum-hint" class="muted"></span>
                   </div>
                 </div>
 
@@ -318,6 +347,10 @@
               <tbody id="invoice-detail-items"></tbody>
             </table>
             <div id="invoice-detail-totals" class="totals"></div>
+            <!-- DESIGN: Ratenplan im Beleg-Detail als einzeilige, ruhige Aufzählung
+                 (kein zweites Tabellengitter) direkt unter den Summen – er ist Kontext
+                 zur Zahlung, nicht Teil der Betragsaufstellung. -->
+            <div id="invoice-detail-installments" class="detail-meta"></div>
             <div id="invoice-detail-pdf" class="detail-pdf"></div>
             <div id="invoice-validation" class="detail-meta"></div>
 
@@ -353,6 +386,38 @@
 
             <h3>Journal / Nachweis</h3>
             <div id="invoice-journal" class="detail-meta"></div>
+          </section>
+        </section>
+
+        <!-- Mahnungen -->
+        <!-- DESIGN: Eine einzige Karte mit Erklärtext oben (hint-top), darunter die
+             Arbeitsliste. Die Mahngebühr steht als einzelnes Feld in der Filterleiste,
+             weil sie für alle erzeugten Mahnungen gilt. Bewusst keine Stufen-Automatik
+             und keine Statusfarben – der Nutzer entscheidet je Zeile. -->
+        <section class="view hidden" data-view="dunning">
+          <div class="view-head"><h1>Mahnungen</h1></div>
+          <section class="card wide">
+            <p class="hint hint-top">Überfällige, offene Rechnungen (Fälligkeit bzw. erste Rate
+              überschritten). Zahlungserinnerung und Mahnung sind reine Anschreiben – kein §14-Beleg,
+              keine Buchung und keine Änderung an Rechnung oder EÜR.</p>
+            <div class="filter-bar">
+              <label>Mahngebühr (€) <input id="dunning-fee" type="number" step="0.01" min="0" value="0" /></label>
+            </div>
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Nr.</th>
+                  <th>Kunde</th>
+                  <th>Fällig seit</th>
+                  <th class="num">Offen gesamt</th>
+                  <th class="num">Jetzt fällig</th>
+                  <th>Stufe</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dunning-list"></tbody>
+            </table>
+            <p id="dunning-msg" class="hint"></p>
           </section>
         </section>
 
@@ -419,6 +484,59 @@
                 </tr>
               </thead>
               <tbody id="expenses-list"></tbody>
+            </table>
+          </section>
+
+          <!-- DESIGN: "Sonstige Einnahmen" spiegelt die Ausgaben-Karte exakt (Kopf mit
+               Aktion, ausklappbares Formular, Liste darunter) – es ist die Gegenseite
+               derselben EÜR-Logik und soll deshalb identisch aufgebaut wirken. Der
+               Hinweis oben erklärt den häufigsten Fall (Mahngebühr, 0 % USt), damit
+               niemand versehentlich Umsatzsteuer ausweist. -->
+          <section class="card wide">
+            <div class="card-head">
+              <h2>Sonstige Einnahmen</h2>
+              <button id="new-income" class="small">+ Neue Einnahme</button>
+            </div>
+            <p class="hint hint-top">Betriebseinnahmen außerhalb einer Rechnung – z. B.
+              <strong>Mahngebühren</strong> oder Verzugszinsen. Diese sind Schadensersatz und
+              damit <strong>ohne Umsatzsteuer</strong>. Bitte erst bei
+              <strong>Zahlungseingang</strong> erfassen (Zuflussprinzip).</p>
+
+            <form id="income-form" class="form hidden" autocomplete="off">
+              <h3 id="income-form-title">Neue Einnahme</h3>
+              <div class="form-row">
+                <label>Datum (Zufluss) <input name="income_date" type="date" /></label>
+                <label class="grow">Beschreibung <input name="description" type="text" /></label>
+              </div>
+              <div class="form-row">
+                <label class="grow">Kategorie <select name="category_id"></select></label>
+                <label class="grow">Bezug zur Rechnung <select name="invoice_id"></select></label>
+              </div>
+              <div class="form-row">
+                <label>Betrag (€) <input name="gross" type="number" step="0.01" value="0" /></label>
+                <label>USt <select name="tax"></select></label>
+                <label class="grow">Notiz <input name="note" type="text" /></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit">Speichern</button>
+                <button type="button" id="cancel-income" class="secondary">Abbrechen</button>
+                <span id="income-error" class="error"></span>
+              </div>
+            </form>
+
+            <table class="invoices-list">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Beschreibung</th>
+                  <th>Kategorie</th>
+                  <th>Rechnung</th>
+                  <th class="num">Netto</th>
+                  <th class="num">Brutto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="income-list"></tbody>
             </table>
           </section>
         </section>

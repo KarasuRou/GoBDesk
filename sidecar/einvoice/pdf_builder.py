@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from decimal import Decimal
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
@@ -45,12 +46,26 @@ def _qty(milli: int) -> str:
     return f"{(Decimal(milli) / 1000).normalize()}".replace(".", ",")
 
 
+def _esc(text: str | None) -> str:
+    """Freitext für reportlabs Mini-Markup entschärfen.
+
+    `Paragraph` parst seinen Inhalt als XML-Fragment: ein „<" in einer
+    Beschreibung, einem Namen oder einer Zahlungsbedingung würde den PDF-Bau
+    mit einem Parse-Fehler abbrechen. Nur Daten escapen – die `&#183;`-Trenner
+    in den f-Strings müssen roh bleiben.
+    """
+    return xml_escape(text or "")
+
+
 def build_pdf(inv: Invoice, path: str) -> str:
     styles = getSampleStyleSheet()
     normal = styles["Normal"]
     normal.fontName = FONT
     small = ParagraphStyle("small", parent=normal, fontSize=8, leading=10, textColor=colors.grey)
     h1 = ParagraphStyle("h1", parent=styles["Heading1"], fontSize=16, fontName=FONT_BOLD)
+    # Tabellenzellen mit Freitext: gleiche Größe wie die FONTSIZE der Tabelle,
+    # aber als Paragraph – nur der bricht um, rohe Strings laufen über.
+    cell = ParagraphStyle("cell", parent=normal, fontSize=9, leading=11)
 
     kind = "Stornorechnung" if inv.cancels_number else "Rechnung"
     doc = SimpleDocTemplate(
@@ -62,13 +77,17 @@ def build_pdf(inv: Invoice, path: str) -> str:
     s, b = inv.seller, inv.buyer
     story: list = []
 
-    story.append(Paragraph(f"{s.name} &#183; {s.street} &#183; {s.zip} {s.city}", small))
+    story.append(
+        Paragraph(
+            f"{_esc(s.name)} &#183; {_esc(s.street)} &#183; {_esc(s.zip)} {_esc(s.city)}", small
+        )
+    )
     story.append(Spacer(1, 10 * mm))
 
-    story.append(Paragraph(b.name, normal))
+    story.append(Paragraph(_esc(b.name), normal))
     if b.street:
-        story.append(Paragraph(b.street, normal))
-    story.append(Paragraph(f"{b.zip or ''} {b.city or ''}".strip(), normal))
+        story.append(Paragraph(_esc(b.street), normal))
+    story.append(Paragraph(_esc(f"{b.zip or ''} {b.city or ''}".strip()), normal))
     story.append(Spacer(1, 10 * mm))
 
     meta = [
@@ -94,7 +113,7 @@ def build_pdf(inv: Invoice, path: str) -> str:
     for i, line in enumerate(inv.lines, start=1):
         _, rate_bp = inv.line_category(line)
         rows.append([
-            str(i), line.description, _qty(line.quantity_milli), line.unit,
+            str(i), Paragraph(_esc(line.description), cell), _qty(line.quantity_milli), line.unit,
             _eur(line.unit_price_net_cents), f"{rate_bp // 100} %", _eur(line.net_cents),
         ])
         # DESIGN: Zu-/Abschläge erscheinen als kleine graue Fußnote unter der
@@ -104,10 +123,10 @@ def build_pdf(inv: Invoice, path: str) -> str:
         notes = []
         if line.discount_cents:
             r = line.discount.reason if line.discount and line.discount.reason else "Rabatt"
-            notes.append(f"abzgl. {r}: -{_eur(line.discount_cents)}")
+            notes.append(f"abzgl. {_esc(r)}: -{_eur(line.discount_cents)}")
         if line.surcharge_cents:
             r = line.surcharge.reason if line.surcharge and line.surcharge.reason else "Aufpreis"
-            notes.append(f"zzgl. {r}: +{_eur(line.surcharge_cents)}")
+            notes.append(f"zzgl. {_esc(r)}: +{_eur(line.surcharge_cents)}")
         if notes:
             rows.append(["", Paragraph(" &#183; ".join(notes), small), "", "", "", "", ""])
     items = Table(rows, colWidths=[11 * mm, 60 * mm, 16 * mm, 16 * mm, 25 * mm, 12 * mm, 25 * mm])
@@ -117,6 +136,8 @@ def build_pdf(inv: Invoice, path: str) -> str:
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ececec")),
         ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
         ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+        # Ohne VALIGN sitzen Menge/Preis/Betrag bei mehrzeiliger Beschreibung am Zellboden.
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LINEBELOW", (0, 0), (-1, 0), 0.6, colors.black),
         ("LINEBELOW", (0, 1), (-1, -1), 0.3, colors.HexColor("#cccccc")),
         ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -132,7 +153,8 @@ def build_pdf(inv: Invoice, path: str) -> str:
     if inv.invoice_discount_cents > 0:
         r = inv.discount.reason if inv.discount and inv.discount.reason else "Rabatt"
         totals.append(["Zwischensumme netto", _eur(inv.line_net_sum_cents)])
-        totals.append([f"abzgl. {r}", "-" + _eur(inv.invoice_discount_cents)])
+        # Der Rabattgrund ist Freitext und kann die Spalte sprengen -> umbrechen.
+        totals.append([Paragraph(_esc(f"abzgl. {r}"), cell), "-" + _eur(inv.invoice_discount_cents)])
     totals.append(["Nettobetrag", _eur(inv.net_total_cents)])
     for row in inv.breakdown:
         if not inv.is_kleinunternehmer and row.rate_bp > 0:
@@ -177,25 +199,25 @@ def build_pdf(inv: Invoice, path: str) -> str:
         story.append(Paragraph(KLEINUNTERNEHMER_HINWEIS, normal))
         story.append(Spacer(1, 4 * mm))
     if inv.payment_terms:
-        story.append(Paragraph(inv.payment_terms, normal))
+        story.append(Paragraph(_esc(inv.payment_terms), normal))
     story.append(Spacer(1, 10 * mm))
 
     footer = []
     if s.tax_number:
-        footer.append(f"Steuernummer: {s.tax_number}")
+        footer.append(f"Steuernummer: {_esc(s.tax_number)}")
     if s.vat_id:
-        footer.append(f"USt-IdNr: {s.vat_id}")
+        footer.append(f"USt-IdNr: {_esc(s.vat_id)}")
     if s.iban:
-        footer.append(f"IBAN: {s.iban}")
+        footer.append(f"IBAN: {_esc(s.iban)}")
     if s.bic:
-        footer.append(f"BIC: {s.bic}")
+        footer.append(f"BIC: {_esc(s.bic)}")
     # DESIGN: PayPal steht als gleichwertiger Zahlweg direkt hinter der
     # Bankverbindung in derselben Fußzeile – kein eigener Block, damit der
     # Rechnungsfuß eine ruhige Zeile bleibt.
     if s.paypal:
-        footer.append(f"PayPal: {s.paypal}")
+        footer.append(f"PayPal: {_esc(s.paypal)}")
     if s.email:
-        footer.append(s.email)
+        footer.append(_esc(s.email))
     story.append(Paragraph(" &#183; ".join(footer), small))
 
     def draw_watermark(canvas, doc):

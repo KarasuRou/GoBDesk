@@ -76,9 +76,10 @@ class Installment:
     amount_cents: int
 
     @classmethod
-    def from_json(cls, d: dict) -> "Installment":
+    def from_json(cls, d: dict, index: int = 0) -> "Installment":
+        # Fehlt seq, gilt die Listenreihenfolge – eine „0." darf nie auf einem Beleg landen.
         return cls(
-            seq=int(d.get("seq", 0)),
+            seq=int(d.get("seq") or index + 1),
             due_date=date.fromisoformat(d["due_date"]),
             amount_cents=int(d["amount_cents"]),
         )
@@ -196,7 +197,9 @@ class Invoice:
             order_number=d.get("order_number"),
             cancels_number=d.get("cancels_number"),
             discount=Adjustment.from_json(d.get("discount")),
-            installments=[Installment.from_json(x) for x in d.get("installments") or []],
+            installments=[
+                Installment.from_json(x, i) for i, x in enumerate(d.get("installments") or [])
+            ],
         )
         inv._compute()
         return inv

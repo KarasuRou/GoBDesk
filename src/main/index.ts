@@ -267,16 +267,30 @@ async function headlessSmoke(db: Database.Database): Promise<number> {
     const dunningOk = Array.isArray(overdue) && overdue.every((o) => o.due_now_cents > 0);
     out.dunning = { ok: dunningOk, overdue: overdue.length };
 
-    // PDF-Vorschau (Basis-Layout) liefert PDF-Bytes.
+    // PDF-Vorschau (Basis-Layout) liefert PDF-Bytes. Bewusst mit langer Beschreibung
+    // inkl. "&" und "<": Freitext läuft durch reportlabs Mini-Markup-Parser, ein
+    // unmaskiertes "<" würde den PDF-Bau abbrechen. Der Ratenplan deckt die
+    // Nummerierung ab (ohne seq stand früher "0." auf jeder Rate).
     const previewBytes = await previewDraftPdf(
       db,
       {
         customer_id: custId,
         issue_date: "2026-07-08",
         service_date: "2026-06-30",
-        payment_terms: "Vorschau",
+        payment_terms: "Vorschau <sofort> & ohne Abzug",
+        installments: [
+          { due_date: "2026-08-01", amount_cents: 2975 },
+          { due_date: "2026-09-01", amount_cents: 2975 },
+        ],
         lines: [
-          { description: "Vorschau-Pos", quantity_milli: 1000, unit: "C62", unit_price_net_cents: 5000, tax_rate_bp: 1900 },
+          {
+            description:
+              "Entwicklung & Bereitstellung des Pen & Paper GUI-Systems <Gesamtprojekt> – Nachlass laut Absprache",
+            quantity_milli: 1000,
+            unit: "C62",
+            unit_price_net_cents: 5000,
+            tax_rate_bp: 1900,
+          },
         ],
       },
       pdfOpts.sidecarDir,

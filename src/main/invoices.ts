@@ -491,7 +491,9 @@ function buildPreviewRequest(
         : { name: "—", street: null, zip: null, city: null, country: "DE", vat_id: null, email: null },
       lines: input.lines,
       discount: input.discount ?? null,
-      installments: input.installments ?? [],
+      // Der Editor vergibt bewusst keine Ratennummern; sie ergeben sich – wie in
+      // insertInstallments – aus der Reihenfolge. Ohne seq druckt der Beleg „0.".
+      installments: (input.installments ?? []).map((r, i) => ({ ...r, seq: i + 1 })),
       payment_terms: input.payment_terms ?? null,
       order_number: orderNumber,
     },
